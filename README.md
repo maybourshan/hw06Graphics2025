@@ -112,13 +112,36 @@ Edit
 - ✅ Success cheer
 - ✅ Failure boo  
 
-🌟 **Bonus Features**  
-(In addition to required bonuses)
-- 🏀 Realistic ball spin around movement axis  
-- 🏟️ 3D stands around court  
-- 🕹️ Four built-in cameras (1–4)  
-- 🎥 Rich animated UI for combos & scores  
-- 📸 Screenshot / video support  
+## Advanced Features
+
+Based on the current implementation, the following optional bonus features are fully supported:
+
+- 🎯 **Multiple Hoops**  
+  Both left and right rims are present, with each shot automatically targeting the nearest hoop.
+
+- 🟡 **Swish Detection**  
+  Perfect “swish” shots (no contact with rim or backboard) trigger a “SWISH!” notification and fireworks effect.
+
+- 🔥 **Combo System**  
+  Consecutive made shots increase a combo counter, awarding extra bonus points and displaying a dynamic combo message.
+
+- ⏱️ **Time Challenge**  
+  A 60-second timed mode with countdown display, win/lose alerts, and automatic reset at round end.
+
+- 🔊 **Sound Effects**  
+  Three distinct audio cues for makes (`cheer.wav`), misses (`boo.wav`), and ball impacts (`basketball.wav`).
+
+- ✨ **Ball Trail Effect**  
+  A fading, five-layer trail follows the ball’s flight path, adding visual flair to each shot.
+
+- 🌬️ **Advanced Physics**  
+  Realistic gravity, energy loss on bounces, precise rim/backboard collisions, and motion damping ensure authentic behavior.
+
+- 🎮 **Game Modes**  
+  Toggle between Free Shoot (live clock) and Timed Challenge modes via on-screen buttons.
+
+- 🏆 **Leaderboard**  
+  High score tracking using `localStorage`, with the top score displayed on the HUD.
 
 🚀 **External Assets**  
 - `basketball.png` – Ball texture  
@@ -128,26 +151,6 @@ Edit
 - `basketball.wav` – Impact sound  
 - `Droid Serif` – Font for timer & text  
 
-🧰 **Core Code Functions**  
-- `createBasketballCourt()` – Court, lines, scoreboard, lighting  
-- `createBasketball()` – Textured rotating ball  
-- `shootBall()` – Trajectory & power calculation  
-- `checkHoopSphereCollision()` – Rim collision detection  
-- `animate()` – Physics loop, rotation, bounce, collision, input  
-
-✅ **Final Checklist**
-
-- [x] Physics movement  
-- [x] Interactive controls  
-- [x] Rotation animation  
-- [x] Scoring system  
-- [x] Combo system  
-- [x] SWISH detection & fireworks  
-- [x] Timed challenge mode  
-- [x] UI & stats display  
-- [x] Graphics & sound effects  
-- [x] Local High Score  
-- [x] Bonus features  
 
 ✨ **Summary**
 

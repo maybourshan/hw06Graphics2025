@@ -1229,7 +1229,7 @@ function shootBall() {
   ).normalize();
 
   const horizontalSpeed = shotPower * 6;
-  const verticalSpeed = shotPower * 20;
+  const verticalSpeed = shotPower * 16;
 
   velocity = new THREE.Vector3(
     horizontalDir.x * horizontalSpeed,
