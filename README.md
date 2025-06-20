@@ -1,137 +1,81 @@
-# HW05 – Interactive Basketball Court with WebGL and Three.js
+🎮 Exercise 6 – Interactive Basketball Shooting Game with Physics
 
 **Semester:** Spring 2025  
 **Course:** Computer Graphics  
-**Student Name :** May Bourshan
+**Student Name:** May Bourshan
 
----
+🏀 **General Description**
 
-## 🏀 Overview
+This project extends Exercise 5 (HW05) to create a full basketball shooting game on a 3D court. The system includes full controls, realistic physics, animations, scoring, different game modes, effects, and an interactive UI.
 
-This project implements a fully interactive 3D basketball court scene using WebGL and Three.js, meeting all mandatory requirements of HW05 and going far beyond with rich bonus features.
+✅ **How to Run**
 
----
+1. Open `index.html` in a modern browser.  
+2. If you use local fonts or textures, run a local server (e.g., Live Server in VS Code).
 
-## ✅ How to Run
+**Controls:**
+- **Arrow keys** – Move on court  
+- **W / S** – Adjust shot power  
+- **Spacebar** – Shoot  
+- **R** – Reset ball  
+- **O** – Toggle Orbit camera  
+- **1** – Top-down view  
+- **2** – Behind scoreboard view  
+- **3** – Classic angled view (default)  
+- **4** – Sideline view  
 
-1. Clone or download the project files  
-2. Open `index.html` in a modern browser  
-   *(If fonts or textures are local, run with a local server like `Live Server` in VSCode)*
-3. Use these controls:
-   - `O` – Toggle orbit camera
-   - `1` – Top-down view
-   - `2` – Behind scoreboard view
-   - `3` – Classic angled view
-   - `4` – Sideline view
+🎯 **Implemented Features**
 
----
+✔️ **Physics-Based Basketball Movement**  
+- Real gravity (−9.8)  
+- Parabolic trajectory using velocity vector  
+- Shot power affects horizontal & vertical speed  
+- Bounces off ground with gradual energy loss  
+- Collision with court walls/edges  
+- Backboard collision with impact sound  
+- Deceleration on bounce  
+- Stop movement when velocity is near zero  
+- Precise rim collision detection  
 
-## 🎯 Mandatory Features Implemented
+✔️ **Interactive Controls**  
+- Smooth motion with arrow keys  
+- Power bar adjustment  
+- Spacebar shoot  
+- Auto-aim toward nearest hoop  
+- Quick reset with “R”  
+- Orbit toggle  
 
-- ✅ Full-size court with:
-  - Center circle
-  - Center line
-  - Three-point arcs (both sides)
-  - Court boundaries
-- ✅ Two basketball hoops with:
-  - Transparent backboards
-  - Orange rims
-  - Metal chain nets (20 segments)
-  - Back support poles and angled arms
-- ✅ Realistic basketball at center court:
-  - Orange texture with leather-like appearance
-  - 4 seam lines: 2 horizontal, 2 vertical (using TubeGeometry)
-  - Correct size and geometry (radius: 0.5)
-  - Two logos (Nike and NBA) added directly on the ball surface
-- ✅ Camera setup:
-  - Orbit controls toggleable with `O`
-  - Default and multiple preset views
-- ✅ UI framework:
-  - Score display (`HOME : 0   AWAY : 0`)
-  - Live countdown timer (10:00 → 0:00)
-  - On-screen controls instructions
-  - Styled HTML elements with CSS
+✔️ **Rotation Animation**  
+- Ball rotates along flight path  
+- Rotation axis computed from movement vector  
+- Spin speed proportional to shot power  
 
----
+✔️ **Advanced Scoring System**  
+- Immediate score updates  
+- Success percentage meter  
+- Track shots & makes  
+- High Score in `localStorage`  
+- Colorful animated messages:  
+  - 🟡 “SWISH!” – perfect no-contact shot  
+  - 🟢 “SHOT MADE!” – normal make  
+  - 🔴 “MISSED SHOT” – miss  
 
-## 🌟 Bonus Features (Full 10 Points Achieved)
+✔️ **Combo System**  
+- Consecutive makes earn bonus:  
+  1st = 2 pts, 2nd = 3 pts, 3rd = 4 pts, …  
+- Combo resets on miss  
+- Visual “COMBO x2! +1 Bonus” mid-screen  
 
-### 🏀 Detailed Court Markings
-- Painted key area ("The Paint") in red with white outline
-- Free-throw arcs using curved lines
-- Full court border, center line, 3-point arcs
+✔️ **SWISH + Fireworks 🎆**  
+- Detect no-contact shot  
+- Display “SWISH!” + fireworks from rim  
 
-### 🧱 Realistic Textures
-- Wooden floor texture on the court
-- Basketball texture with leather-like surface
-
-### 💡 Advanced Lighting
-- Ambient + directional light
-- Hemisphere light for sky-ground blend
-- Three spotlights:
-  - 2 on each hoop
-  - 1 from above center court
-- All lights support shadows
-
-### 🏗️ Detailed Hoop Design
-- Backboards with white border outlines
-- Orange torus rims
-- Metal chain nets with smooth curve simulation
-- Support pole + diagonal arm
-- Logos ("MB") on each backboard – one mirrored
-
-### 🏟️ Stadium Environment
-- Full bleachers (stadium seating) on all sides
-- Large scoreboard with:
-  - Static score text
-  - Dynamic countdown timer (`TextGeometry`)
-- External score UI (`div#score`) in top corner
-- HTML UI for user instructions
-
-### 🎥 Multiple Camera Presets
-- 4 view presets available with keys `1` to `4`
-
-## 📸 Screenshots
-
-### 🏀 Full court view  
-(*This is the default camera preset when pressing `3`*)  
-![Full Court](screenshots/full_court.png)
-
-### 🔍 Close-up of basketball hoop with net  
-![Hoop Closeup](screenshots/hoop_closeup.png)
-
-### 🎯 Basketball positioned at center court  
-![Ball Center](screenshots/basketball_closeup.png)
-
-### 🎥 Camera controls in action  
-The following views demonstrate the working camera presets triggered by keys `1`, `2`, and `4`:
-
-- **Top-down view (key `1`)**  
-  ![Top View](screenshots/press_1.png)
-
-- **Behind scoreboard view (key `2`)**  
-  ![Back View](screenshots/press_2.png)
-
-- **Sideline view (key `4`)**  
-  ![Side View](screenshots/press_4.png)
-
----
-
-## ⚠️ Known Issues
-
-- No known issues. Fully tested on Chrome and Edge.
-
----
-
-## 🔗 External Assets Used
-
-- `wood_floor.jpg` — wooden floor texture
-- `basketball.jpg` — ball texture
-- [Three.js Helvetiker font](https://threejs.org/examples/fonts/helvetiker_regular.typeface.json)
-
----
-
-## 📝 Notes
-
-All components were implemented from scratch with custom geometry and logic, including the scoreboard timer, net curves, and dynamic text updates.
-
+✔️ **Timed Challenge Mode**  
+- Scoreboard shows clock or timer  
+- **Free Shoot**: current time  
+- **Challenge**: 60 s countdown  
+- Default: Free Shoot  
+- Mode switch resets all stats (score, shots, combo)  
+- High Score preserved across sessions  
+- Goal: reach 50 pts in 60 s  
+- On success: animated “🎉 You won the challenge!” + `alert` with:
