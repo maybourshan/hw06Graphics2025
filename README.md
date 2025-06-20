@@ -111,18 +111,25 @@ You can switch between **Free Shoot** and **Timed Challenge** modes anytime usin
 
 ## 📸 Screenshots / Video
 
-Screenshots showcase:
+Below are visual highlights of the game:
 
-- 🏀 Basketball movement using arrow keys  
-- 🎯 Shot power adjustment (W/S keys)  
-- 🔄 Shooting with spacebar  
-- ✅ Successful hit with score update  
-- 🌀 Ball spin animation  
-- 📊 Full UI: score, combo, stats, timer, and controls  
+🖼️ ![Game UI Overview](screenshots/game_screenshot.png)
 
-🎬 *Optional*: A 30–60 second video demonstrating gameplay in both Free Shoot and Timed Challenge modes.
+🎬 **[Watch Swish Shot (MP4)](screenshots/swish_record.mp4)**  
+A short clip demonstrating a perfect "Swish" shot with no rim contact, combo bonus, fireworks animation, and score update.
 
----
+🎬 **[Watch Full Gameplay (MP4)](screenshots/example_game_record.mp4)**   
+A full 60-second recording demonstrating the main gameplay features:
+- 🏀 Basketball being moved around the court using arrow keys  
+- 🎯 Shot power adjustment using W/S keys  
+- 🔄 Shooting mechanics with spacebar  
+- ✅ Successful shot with real-time score update  
+- 🌀 Ball rotation animation during movement and flight  
+- 📊 Full UI: score, combo, statistics, timer, and controls  
+- ⏱️ Switching to Timed Challenge mode and breaking the **local high score**  
+- 🎉 Combo streak 
+- 🔁 Missed shots and automatic reset of combo  
+
 
 ## ⚠️ Known Issues
 
