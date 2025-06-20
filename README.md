@@ -79,3 +79,77 @@ This project extends Exercise 5 (HW05) to create a full basketball shooting game
 - High Score preserved across sessions  
 - Goal: reach 50 pts in 60 s  
 - On success: animated “🎉 You won the challenge!” + `alert` with:
+🏆 Challenge Completed!
+Final Score: X
+Shots: Y
+Hits: Z
+Accuracy: P%
+
+markdown
+Copy
+Edit
+- On timeout before 50 pts: “⏱ Time’s Up!” + same stats alert  
+- Start/stop button for Challenge  
+
+✔️ **Rich UI**  
+- Power bar  
+- Game mode menu (Free Shoot / Challenge)  
+- Combo popup animations  
+- On-screen display of:
+- Shots
+- Makes
+- Accuracy %
+- Current Score & High Score
+- Timer / Clock
+- Animated messages  
+- Real-time stats  
+
+✔️ **Graphics & Sound Effects**  
+- 5-layer colored ball trail  
+- Firework effects on perfect makes  
+- Three sound types:
+- ✅ Ball hit rim/ground
+- ✅ Success cheer
+- ✅ Failure boo  
+
+🌟 **Bonus Features**  
+(In addition to required bonuses)
+- 🏀 Realistic ball spin around movement axis  
+- 🏟️ 3D stands around court  
+- 🕹️ Four built-in cameras (1–4)  
+- 🎥 Rich animated UI for combos & scores  
+- 📸 Screenshot / video support  
+
+🚀 **External Assets**  
+- `basketball.png` – Ball texture  
+- `wood_floor.jpg` – Court floor  
+- `cheer.wav` – Success sound  
+- `boo.wav` – Failure sound  
+- `basketball.wav` – Impact sound  
+- `Droid Serif` – Font for timer & text  
+
+🧰 **Core Code Functions**  
+- `createBasketballCourt()` – Court, lines, scoreboard, lighting  
+- `createBasketball()` – Textured rotating ball  
+- `shootBall()` – Trajectory & power calculation  
+- `checkHoopSphereCollision()` – Rim collision detection  
+- `animate()` – Physics loop, rotation, bounce, collision, input  
+
+✅ **Final Checklist**
+
+- [x] Physics movement  
+- [x] Interactive controls  
+- [x] Rotation animation  
+- [x] Scoring system  
+- [x] Combo system  
+- [x] SWISH detection & fireworks  
+- [x] Timed challenge mode  
+- [x] UI & stats display  
+- [x] Graphics & sound effects  
+- [x] Local High Score  
+- [x] Bonus features  
+
+✨ **Summary**
+
+This project meets all HW06 requirements and extends them significantly. The combination of graphics, physics, controls, design, and challenge makes for a complete and engaging game experience.
+
