@@ -113,7 +113,7 @@ You can switch between **Free Shoot** and **Timed Challenge** modes anytime usin
 
 Below are visual highlights of the game:
 
-🖼️ ![Game UI Overview](shttps://www.youtube.com/watch?v=vS3HTB0j_Hw&feature=youtu.be)
+🖼️ ![Game UI Overview](screenshots/game_screenshot.png)
 
 🎬 **[Watch Swish Shot (MP4)](https://www.youtube.com/watch?v=vE5b3hfhDQI&feature=youtu.be)**  
 A short clip demonstrating a perfect "Swish" shot with no rim contact, combo bonus, fireworks animation, and score update.
