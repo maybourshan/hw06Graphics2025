@@ -102,10 +102,11 @@ You can switch between **Free Shoot** and **Timed Challenge** modes anytime usin
 
 - 5-layer colorful ball trail  
 - Fireworks effect on perfect swishes  
-- Three distinct sound effects:  
+- Four distinct sound effects:  
   - ✅ Ball collision (rim, ground, or backboard)  
   - ✅ Success cheer  
-  - ✅ Missed shot “boo”
+  - ✅ Missed shot “boo”  
+  - ✅ *Whoosh* sound during ball flight (simulates air friction)
 
 ---
 
@@ -115,10 +116,11 @@ You can switch between **Free Shoot** and **Timed Challenge** modes anytime usin
 - **Swish Detection** – No-contact shots trigger a “SWISH!” message and fireworks  
 - **Combo System** – Consecutive hits give bonus points with animated messages  
 - **Time Challenge Mode** – 60-second challenge with goal, score tracking, and alerts  
-- **Sound Effects** – Impact, make, and miss sounds for all interactions  
+- **Sound Effects** – Whoosh sound for each shot, impact sound on rim/backboard/floor, cheer sound for successful shots, and boo sound for missed attempts.
 - **Ball Trail Effect** – 5-layer colorful trail follows ball in motion  
 - **Game Modes** – Switch between Free Shoot and Timed Challenge anytime  
-- **Leaderboard** – Local high score saved via `localStorage`
+- **Leaderboard** – Local high score saved via `localStorage`  
+- **Advanced Physics** – Implemented realistic **air resistance** by gradually reducing the ball's velocity vector using `velocity.multiplyScalar(0.999)` each frame, simulating aerodynamic drag and realistic deceleration.
 
 --- 
 
@@ -128,10 +130,10 @@ Below are visual highlights of the game:
 
 🖼️ ![Game UI Overview](screenshots/game_screenshot.png)
 
-🎬 **[Watch Swish Shot (MP4)](https://www.youtube.com/watch?v=vE5b3hfhDQI&feature=youtu.be)**  
+🎬 **[Watch Swish Shot (MP4)](https://youtu.be/03vjVlVHhEQ)**  
 A short clip demonstrating a perfect "Swish" shot with no rim contact, combo bonus, fireworks animation, and score update.
 
-🎬 **[Watch Full Gameplay (MP4)](https://www.youtube.com/watch?v=vS3HTB0j_Hw&feature=youtu.be)**   
+🎬 **[Watch Full Gameplay (MP4)](https://youtu.be/cZWvQpCoIYM)**   
 A full 60-second recording demonstrating the main gameplay features:
 - 🏀 Basketball being moved around the court using arrow keys  
 - 🎯 Shot power adjustment using W/S keys  

@@ -77,6 +77,8 @@ let scoreTextMesh = null;
 const cheerSound = new Audio('src/sounds/cheer.wav');
 const booSound = new Audio('src/sounds/boo.wav');
 const basketballsound = new Audio('src/sounds/basketball.wav');
+const wooshSound = new Audio('src/sounds/woosh.wav');
+
 
 const collisionHoopSpheres = [];
 let currentTargetHoop = null;
@@ -1179,6 +1181,8 @@ function shootBall() {
   if (!basketball) return;
 
   isShooting = true;
+  wooshSound.currentTime = 0;
+  wooshSound.play();
   collidedDuringShot = false;
   scoredThisShot = false; // ✅ reset score flag
   shotsAttempted++;
@@ -1252,6 +1256,8 @@ document.addEventListener('keydown', handleKeyDown);
     if (isShooting) {
       // Apply gravity
       velocity.y += gravity * timeStep;
+      // Apply air resistance
+      velocity.multiplyScalar(0.999);
       basketball.position.add(velocity.clone().multiplyScalar(timeStep));
 
       //Add trail points for visual effect
