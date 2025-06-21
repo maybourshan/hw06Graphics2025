@@ -1,83 +1,65 @@
 // Import orbit camera controls
 import { OrbitControls } from './OrbitControls.js';
 
-// Load textures for the scene
+// Load texture loader for materials
 const loader = new THREE.TextureLoader();
 
 // Set up scene
 const scene = new THREE.Scene();
-// 🌟 Trail Configuration
+scene.background = new THREE.Color(0x000000); // Set background color to black
+
+// Set up renderer
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true; // Enable shadow rendering
+document.body.appendChild(renderer.domElement);
+
+// Set up camera
+const camera = new THREE.PerspectiveCamera(
+  75,                                  // Field of view
+  window.innerWidth / window.innerHeight, // Aspect ratio
+  0.1,                                 // Near clipping plane
+  1000                                 // Far clipping plane
+);
+
+// Add ambient and directional lighting
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+scene.add(ambientLight);
+
+const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+directionalLight.position.set(10, 20, 15);
+directionalLight.castShadow = true;
+scene.add(directionalLight);
+
+// Trail configuration (visual path behind the ball)
 const maxTrailLength = 25;
 let font;
-// 🌟 Trail Data Arrays
-const trailMain = [];
-const trailLeft = [];
-const trailRight = [];
-const trailUpper = [];
-const trailLower = [];
 
-// 🔶 Geometry for Each Trail Layer
+const trailMain = [], trailLeft = [], trailRight = [], trailUpper = [], trailLower = [];
+
 const trailGeometryMain  = new THREE.BufferGeometry();
 const trailGeometryLeft  = new THREE.BufferGeometry();
 const trailGeometryRight = new THREE.BufferGeometry();
 const trailGeometryUpper = new THREE.BufferGeometry();
 const trailGeometryLower = new THREE.BufferGeometry();
 
-// 🎨 Materials for Trail Layers
-const trailMaterialMain = new THREE.LineBasicMaterial({
-  color: 0xff9900, // Orange core
-  transparent: true,
-  opacity: 0.3,
-  depthWrite: false
-});
+const trailMaterialMain = new THREE.LineBasicMaterial({ color: 0xff9900, transparent: true, opacity: 0.3, depthWrite: false });
+const trailMaterialLeft = new THREE.LineBasicMaterial({ color: 0xffcc66, transparent: true, opacity: 0.3, depthWrite: false });
+const trailMaterialRight = trailMaterialLeft.clone();
+const trailMaterialUpper = new THREE.LineBasicMaterial({ color: 0xffff99, transparent: true, opacity: 0.3, depthWrite: false });
+const trailMaterialLower = new THREE.LineBasicMaterial({ color: 0xff9999, transparent: true, opacity: 0.2, depthWrite: false });
 
-const trailMaterialLeft = new THREE.LineBasicMaterial({
-  color: 0xffcc66, // Light gold
-  transparent: true,
-  opacity: 0.3,
-  depthWrite: false
-});
+scene.add(new THREE.Line(trailGeometryMain, trailMaterialMain));
+scene.add(new THREE.Line(trailGeometryLeft, trailMaterialLeft));
+scene.add(new THREE.Line(trailGeometryRight, trailMaterialRight));
+scene.add(new THREE.Line(trailGeometryUpper, trailMaterialUpper));
+scene.add(new THREE.Line(trailGeometryLower, trailMaterialLower));
 
-const trailMaterialRight = trailMaterialLeft.clone(); // Same color as left
-
-const trailMaterialUpper = new THREE.LineBasicMaterial({
-  color: 0xffff99, // Yellow
-  transparent: true,
-  opacity: 0.3,
-  depthWrite: false
-});
-
-const trailMaterialLower = new THREE.LineBasicMaterial({
-  color: 0xff9999, // Soft red
-  transparent: true,
-  opacity: 0.2,
-  depthWrite: false
-});
-
-// 🧱 Create Line Meshes for Each Layer
-const trailLineMain  = new THREE.Line(trailGeometryMain,  trailMaterialMain);
-const trailLineLeft  = new THREE.Line(trailGeometryLeft,  trailMaterialLeft);
-const trailLineRight = new THREE.Line(trailGeometryRight, trailMaterialRight);
-const trailLineUpper = new THREE.Line(trailGeometryUpper, trailMaterialUpper);
-const trailLineLower = new THREE.Line(trailGeometryLower, trailMaterialLower);
-
-// ➕ Add All to Scene
-scene.add(trailLineMain);
-scene.add(trailLineLeft);
-scene.add(trailLineRight);
-scene.add(trailLineUpper);
-scene.add(trailLineLower);
-
-
-let currentClockInterval = null;
-let didWinChallenge = false;
-
-
-let basketball = null; 
-let moveLeft = false;
-let moveRight = false;
-let moveForward = false;
-let moveBackward = false;
+/* =========================================================================
+   Global states
+   ========================================================================= */
+let basketball = null;
+let moveLeft = false, moveRight = false, moveForward = false, moveBackward = false;
 
 const realHoops = [];
 const movementSpeed = 0.2;
@@ -100,7 +82,6 @@ const collisionHoopSpheres = [];
 let currentTargetHoop = null;
 let shotHoopCenter = null;
 
-
 let prevY = 0;
 let collidedDuringShot = false;
 let scoredThisShot = false;
@@ -110,73 +91,57 @@ let comboCount = 0;
 let comboBonus = 0;
 
 let isShooting = false;
-let velocity = new THREE.Vector3(); // מהירות הכדור (vx, vy, vz)
+let velocity = new THREE.Vector3(); // Current velocity of the ball
 const gravity = -9.8;
-const timeStep = 1 / 60; // פריים ב-60FPS
+const timeStep = 1 / 60;
 
-const rimRight = new THREE.Vector3(15, 3.05, 0);   // הסל הימני
-const rimLeft  = new THREE.Vector3(-15, 3.05, 0);  // הסל השמאלי
+const rimRight = new THREE.Vector3(15, 3.05, 0);
+const rimLeft  = new THREE.Vector3(-15, 3.05, 0);
 
 const fireworks = [];
 const clock = new THREE.Clock();
 
 let isTimedChallenge = false;
+let currentClockInterval = null;
+let didWinChallenge = false;
+let timerMesh = null; // Will hold the timer display on scoreboard
 
 
-// Set up camera with perspective projection
-const camera = new THREE.PerspectiveCamera(
-  75, // field of view
-  window.innerWidth / window.innerHeight, // aspect ratio
-  0.1, // near clipping plane
-  1000 // far clipping plane
-);
+// Create all elements
+createBasketballCourt();
 
-// Set up renderer
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
-
-// Set background color to black
-scene.background = new THREE.Color(0x000000);
-
-// Add ambient light (soft overall lighting)
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-scene.add(ambientLight);
-
-// Add directional light (acts like a sun)
-const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-directionalLight.position.set(10, 20, 15);
-directionalLight.castShadow = true;
-scene.add(directionalLight);
-
-// Enable shadow rendering
-renderer.shadowMap.enabled = true;
-
-// Timer variables for the scoreboard
-let timerMesh = null;
+// Set camera position for better view
+const cameraTranslate = new THREE.Matrix4();
+cameraTranslate.makeTranslation(0, 15, 30);
+camera.applyMatrix4(cameraTranslate);
 
 
-// Create the basketball court
+// Orbit controls
+const controls = new OrbitControls(camera, renderer.domElement);
+let isOrbitEnabled = true;
+
+/* =========================================================================
+   Court Construction & Game Objects
+   ========================================================================= */
+
+
+//Create the basketball court and its components
 function createBasketballCourt() {
-  // Load wood floor texture from textures folder
   const floorTexture = loader.load('src/textures/ww.jpg');
   floorTexture.wrapS = floorTexture.wrapT = THREE.RepeatWrapping;
-  floorTexture.repeat.set(4, 2); // Repeat texture for visual realism
+  floorTexture.repeat.set(4, 2); // Tiling pattern for realism
 
-  // Create material with texture and slight shininess
   const courtMaterial = new THREE.MeshPhongMaterial({
     map: floorTexture,
     shininess: 10,
   });
 
-  // Create floor geometry (30 x 0.2 x 15 units)
   const courtGeometry = new THREE.BoxGeometry(30, 0.2, 15);
   const court = new THREE.Mesh(courtGeometry, courtMaterial);
   court.receiveShadow = true;
   court.castShadow = false;
   scene.add(court);
 
-  // Add all key elements to the court
   createCourtLines();
   createBasketball();
   createScoreboard();
@@ -258,451 +223,6 @@ function createCourtLines() {
   createKeyArea();
   addAdvancedLights();
 }
-
-
-// Add additional light sources for enhanced lighting effects
-function addAdvancedLights() {
-  // SpotLight on the left hoop
-  const spotLeft = new THREE.SpotLight(0xffddaa, 0.5); // warm tone
-  spotLeft.position.set(-13, 8, 0); // above-left
-  spotLeft.target.position.set(-15, 3, 0); // aiming at the left hoop
-  spotLeft.angle = Math.PI / 8; // narrow cone
-  spotLeft.penumbra = 0.4; // softer edges
-  spotLeft.castShadow = true;
-  scene.add(spotLeft);
-  scene.add(spotLeft.target);
-
-  // SpotLight on the right hoop
-  const spotRight = new THREE.SpotLight(0xffddaa, 0.5); // same warm tone
-  spotRight.position.set(13, 8, 0); // above-right
-  spotRight.target.position.set(15, 3, 0); // aiming at the right hoop
-  spotRight.angle = Math.PI / 8;
-  spotRight.penumbra = 0.4;
-  spotRight.castShadow = true;
-  scene.add(spotRight);
-  scene.add(spotRight.target);
-
-  // Soft ambient hemisphere light (sky + ground blend)
-  const hemi = new THREE.HemisphereLight(0xffffff, 0x222222, 0.2);
-  scene.add(hemi);
-
-  // SpotLight above the center of the court
-  const centerSpot = new THREE.SpotLight(0xffffff, 0.2);
-  centerSpot.position.set(0, 12, 0); // top center
-  centerSpot.target.position.set(0, 0, 0); // pointing downward
-  centerSpot.angle = Math.PI / 9;
-  centerSpot.penumbra = 0.3;
-  centerSpot.castShadow = true;
-  scene.add(centerSpot);
-  scene.add(centerSpot.target);
-
-}
-
-
-// Draws the key area (painted area under each basket) including:
-// - White outline
-// - Red filled rectangle
-// - White semi-circle in front of each key
-function createKeyArea() {
-  const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff });
-
-  // Red fill for the key
-  const fillMatRed = new THREE.MeshBasicMaterial({ 
-    color: 0xff0000, 
-    transparent: true, 
-    opacity: 0.5,
-    side: THREE.DoubleSide 
-  });
-
-  // White fill for the semi-circle (free throw area)
-  const fillMatWhite = new THREE.MeshBasicMaterial({ 
-    color: 0xffffff,
-    transparent: true,
-    opacity: 0.6,
-    side: THREE.DoubleSide 
-  });
-
-  // Dimensions
-  const halfCourtX   = 15;
-  const laneWidthZ   = 4.6;
-  const laneDepthX   = 5;
-  const circleRadius = 1.8;
-  const segments     = 32;
-
-  // Create mirrored elements for both sides of the court
-  [ -1, +1 ].forEach(side => {
-    const innerX = side * (halfCourtX - laneDepthX); // near the center
-    const outerX = side * halfCourtX;                // edge of court
-    const leftZ  = -laneWidthZ / 2;
-    const rightZ = laneWidthZ / 2;
-
-    // White rectangle outline
-    const boxPts = [
-      new THREE.Vector3(innerX, 0.11, leftZ),
-      new THREE.Vector3(outerX, 0.11, leftZ),
-      new THREE.Vector3(outerX, 0.11, rightZ),
-      new THREE.Vector3(innerX, 0.11, rightZ),
-      new THREE.Vector3(innerX, 0.11, leftZ),
-    ];
-    scene.add(new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints(boxPts),
-      lineMat
-    ));
-
-    // Red filled rectangle inside the key
-    const rectWidth = laneDepthX;
-    const rectDepth = laneWidthZ;
-    const rectGeometry = new THREE.PlaneGeometry(rectWidth, rectDepth);
-    const rectangle = new THREE.Mesh(rectGeometry, fillMatRed);
-    const midX = (innerX + outerX) / 2;
-    rectangle.rotation.x = -Math.PI / 2;
-    rectangle.position.set(midX, 0.101, 0);
-    scene.add(rectangle);
-
-    // White filled semi-circle in front of the key (free throw arc)
-    const shape = new THREE.Shape();
-    for (let i = 0; i <= segments; i++) {
-      const t = (i / segments) * Math.PI;
-      const x = innerX - side * (circleRadius * Math.sin(t));
-      const z = circleRadius * Math.cos(t);
-      if (i === 0) {
-        shape.moveTo(x, z);
-      } else {
-        shape.lineTo(x, z);
-      }
-    }
-    shape.lineTo(innerX, 0);
-    shape.lineTo(innerX - side * (circleRadius * Math.sin(0)), circleRadius);
-
-    const geometry = new THREE.ShapeGeometry(shape);
-    const mesh = new THREE.Mesh(geometry, fillMatWhite);
-    mesh.rotation.x = -Math.PI / 2;
-    mesh.position.set(0, 0.101, 0);
-    scene.add(mesh);
-  });
-}
-
-
-// Create all elements
-createBasketballCourt();
-
-// Set camera position for better view
-const cameraTranslate = new THREE.Matrix4();
-cameraTranslate.makeTranslation(0, 15, 30);
-camera.applyMatrix4(cameraTranslate);
-
-
-// Orbit controls
-const controls = new OrbitControls(camera, renderer.domElement);
-let isOrbitEnabled = true;
-
-// === Instructions Display (Bottom-Left Corner) ===
-const instructionsElement = document.createElement('div');
-instructionsElement.style.position = 'absolute';
-instructionsElement.style.bottom = '20px';
-instructionsElement.style.left = '20px';
-instructionsElement.style.color = 'white';
-instructionsElement.style.fontSize = '16px';
-instructionsElement.style.fontFamily = 'Arial, sans-serif';
-instructionsElement.style.textAlign = 'left';
-instructionsElement.style.backgroundColor = 'rgba(0, 0, 0, 0.4)';
-instructionsElement.style.padding = '10px';
-instructionsElement.style.border = '1px solid white';
-instructionsElement.style.borderRadius = '6px';
-instructionsElement.innerHTML = `
-  <h3 style="margin: 0 0 5px 0;">Controls:</h3>
-  <p style="margin: 0;">O – Toggle Orbit Camera</p>
-`;
-document.body.appendChild(instructionsElement);
-
-// === Score, Power & Stats Display ===
-
-// === Box 1:
-// 📦 Create top-right info box
-const infoBoxTopRight = document.createElement('div');
-infoBoxTopRight.style.position = 'absolute';
-infoBoxTopRight.style.top = '20px';
-infoBoxTopRight.style.right = '20px';
-infoBoxTopRight.style.zIndex = '9999';
-infoBoxTopRight.style.padding = '10px';
-infoBoxTopRight.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-infoBoxTopRight.style.border = '1px solid white';
-infoBoxTopRight.style.borderRadius = '12px'; // ✅ Rounded corners
-infoBoxTopRight.style.fontSize = '16px';
-infoBoxTopRight.style.color = 'white';
-infoBoxTopRight.style.fontFamily = 'Arial, sans-serif'; // ✅ Fixed-width font
-infoBoxTopRight.style.width = '150px';          // ✅ Prevent resizing
-infoBoxTopRight.style.display = 'flex';
-infoBoxTopRight.style.flexDirection = 'column';
-infoBoxTopRight.style.gap = '6px';
-infoBoxTopRight.style.alignItems = 'flex-start';
-infoBoxTopRight.style.textAlign = 'left';
-
-// ⚡ Power element
-const powerElement = document.createElement('div');
-powerElement.id = "power";
-powerElement.innerText = `Power: ${Math.round(shotPower * 100)}%`;
-
-// 📊 Stats element
-const statsElement = document.createElement('div');
-statsElement.id = "stats";
-statsElement.style.textAlign = 'left';
-statsElement.innerHTML = `
-  Shots: 0<br>
-  Hits: 0<br>
-  Accuracy: 0.0%
-`;
-
-// 🧩 Add elements to box
-infoBoxTopRight.appendChild(powerElement);
-infoBoxTopRight.appendChild(statsElement);
-document.body.appendChild(infoBoxTopRight);
-
-
-const comboEl = document.createElement('div');
-comboEl.id = "comboMessage";
-comboEl.style.position = 'absolute';
-comboEl.style.top = '60%'; // מקפיץ אותו קצת מעל
-comboEl.style.left = '50%';
-comboEl.style.transform = 'translateX(-50%)';
-comboEl.style.fontSize = '30px';
-comboEl.style.fontWeight = 'bold';
-comboEl.style.color = 'gold';
-comboEl.style.textShadow = '2px 2px 4px #000';
-comboEl.style.opacity = '0';
-comboEl.style.transition = 'opacity 0.5s ease-out';
-comboEl.style.pointerEvents = 'none';
-comboEl.style.zIndex = '9999';
-document.body.appendChild(comboEl);
-
-
-const el = document.createElement('div');
-el.id = 'highScoreBox';
-el.style.position = 'absolute';
-el.style.top = '20px';
-el.style.right= '220px'; // ⬅️ ימינה מהקצה = שמאלה מהקופסה הקיימת
-el.style.padding = '10px';
-el.style.background = 'rgba(0, 0, 0, 0.7)';
-el.style.color = 'gold';
-el.style.fontSize = '18px';
-el.style.fontWeight = 'bold';
-el.style.border = '2px solid gold';
-el.style.borderRadius = '10px';
-el.style.zIndex = '9999';
-el.innerText = `🏅 High Score: ${localStorage.getItem("highScore") || 0}`;
-document.body.appendChild(el);
-
-const modeMenu = document.createElement('div');
-modeMenu.style.position = 'absolute';
-modeMenu.style.top = '20px';               // פינה שמאלית עליונה
-modeMenu.style.left = '20px';
-modeMenu.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-modeMenu.style.padding = '10px';
-modeMenu.style.border = '1px solid white';
-modeMenu.style.borderRadius = '8px';
-modeMenu.style.zIndex = '9999';
-modeMenu.style.display = 'flex';
-modeMenu.style.flexDirection = 'column';   // אחד מתחת לשני
-modeMenu.style.gap = '10px';
-
-const freeBtn = document.createElement('button');
-freeBtn.textContent = 'Free Shoot';
-
-const timedBtn = document.createElement('button');
-timedBtn.textContent = 'Timed Challenge';
-
-// עיצוב אחיד לכפתורים
-[freeBtn, timedBtn].forEach(btn => {
-  btn.style.width = '160px';              // ✅ רוחב אחיד
-  btn.style.height = '40px';              // ✅ גובה אחיד
-  btn.style.fontSize = '16px';
-  btn.style.fontWeight = 'bold';
-  btn.style.border = 'none';
-  btn.style.borderRadius = '6px';
-  btn.style.cursor = 'pointer';
-  btn.style.backgroundColor = '#ffffff';
-  btn.style.color = '#000000';
-});
-
-modeMenu.appendChild(freeBtn);
-modeMenu.appendChild(timedBtn);
-document.body.appendChild(modeMenu);
-
-freeBtn.onclick = () => {
-  freeBtn.blur();
-  isTimedChallenge = false;
-  clearInterval(currentClockInterval);
-
-  resetGame();
-  startFreeModeClock();
-};
-
-const targetScore = 50; // ✅ צריך להגיע לשתי נקודות
-let secondsLeft = 60;
-
-timedBtn.onclick = () => {
-  timedBtn.blur();
-  clearInterval(currentClockInterval);
-  secondsLeft = 60;
-  isTimedChallenge = true;
-  resetGame();
-
-  updateTimerDisplay(`01:00`);
-
-  currentClockInterval = setInterval(() => {
-    secondsLeft--;
-
-    updateTimerDisplay(
-      `${Math.floor(secondsLeft / 60).toString().padStart(2, '0')}:${(secondsLeft % 60).toString().padStart(2, '0')}`
-    );
-
-    if (score >= targetScore) {
-      clearInterval(currentClockInterval);
-      isTimedChallenge = false;
-      handleWin();
-      return; // לא לבדוק גם הפסד
-    }
-
-
-    if (secondsLeft <= 0) {
-      clearInterval(currentClockInterval);
-      isTimedChallenge = false;
-      endTimedChallenge();
-    }
-  }, 1000);
-};
-
-function handleWin() {
-  didWinChallenge = true;
-  endTimedChallenge(); 
-}
-
-
-
-function updateHighScoreIfNeeded() {
-  const prev = parseInt(localStorage.getItem("highScore")) || 0;
-  if (score > prev) {
-    localStorage.setItem("highScore", score);
-  }
-
-  const el = document.getElementById("highScoreBox");
-  if (el) {
-    el.innerText = `🏅 High Score: ${Math.max(score, prev)}`;
-  }
-}
-
-
-function updateTimerDisplay(text) {
-  if (!timerMesh) return;
-
-  const loader = new THREE.FontLoader();
-  loader.load('https://threejs.org/examples/fonts/droid/droid_serif_regular.typeface.json', function (font) {
-    const newGeometry = new THREE.TextGeometry(text, {
-      font: font,
-      size: 0.75,
-      height: 0.05,
-      curveSegments: 10
-    });
-
-    newGeometry.computeBoundingBox();
-    const newWidth = newGeometry.boundingBox.max.x - newGeometry.boundingBox.min.x;
-
-    timerMesh.geometry.dispose();
-    timerMesh.geometry = newGeometry;
-    timerMesh.position.set(-newWidth / 2, -1.3, 0.11);
-  });
-}
-
-
-// מזהה לתפריט כדי שנוכל להסתיר אותו אח"כ
-modeMenu.id = "modeMenu";
-
-
-// Handle keyboard input for camera control and orbit toggle
-function handleKeyDown(e) {
-  // Toggle orbit controls with "o"
-  if (e.key === "o") {
-    isOrbitEnabled = !isOrbitEnabled;
-  }
-
-  // Camera preset views (1–4)
-
-  // Top-down view (bird’s eye)
-  if (e.key === "1") {
-    camera.position.set(0, 30, 0);
-    camera.lookAt(0, 0, 0);
-  }
-
-  // Behind scoreboard view
-  if (e.key === "2") {
-    camera.position.set(0, 5, -25);
-    camera.lookAt(0, 5, 0);
-  }
-
-  // Classic default viewing angle
-  if (e.key === "3") {
-    camera.position.set(0, 15, 30);
-    camera.lookAt(0, 0, 0);
-  }
-
-  // Side view (from sidelines)
-  if (e.key === "4") {
-    camera.position.set(25, 5, 0);
-    camera.lookAt(0, 0, 0);
-  }
-  
-}
-
-// תנועה עם חצים
-document.addEventListener('keydown', (e) => {
-  switch (e.key) {
-    case 'ArrowLeft': moveLeft = true; break;
-    case 'ArrowRight': moveRight = true; break;
-    case 'ArrowUp': moveForward = true; break;
-    case 'ArrowDown': moveBackward = true; break;
-
-    case 'w':
-    case 'W':
-      shotPower = Math.min(maxPower, shotPower + powerStep);
-      updatePowerDisplay();
-      break;
-
-    case 's':
-    case 'S':
-      shotPower = Math.max(minPower, shotPower - powerStep);
-      updatePowerDisplay();
-      break;
-
-    case ' ':
-      if (!isShooting) shootBall();
-      break;
-
-    case 'r':
-    case 'R':
-      if (basketball) {
-        basketball.position.set(0, 0.5, 0);  // מרכז המגרש
-        velocity.set(0, 0, 0);              // איפוס מהירות
-        isShooting = false;                 // ביטול מצב זריקה
-        shotPower = 0.5;                    // עוצמה ברירת מחדל
-        updatePowerDisplay();               // עדכון ה־UI
-        showFeedbackMessage("Ball reset");  
-      }
-      break;
-  }
-});
-
-
-document.addEventListener('keyup', (e) => {
-  switch (e.key) {
-    case 'ArrowLeft': moveLeft = false; break;
-    case 'ArrowRight': moveRight = false; break;
-    case 'ArrowUp': moveForward = false; break;
-    case 'ArrowDown': moveBackward = false; break;
-  }
-});
-
-
-
 
 // Creates a complete basketball hoop at the given X position (left or right)
 function createHoop(xPosition) {
@@ -850,22 +370,25 @@ function createHoop(xPosition) {
 }
 
 
+// Creates a ring of invisible collision spheres around the hoop's rim.
+// These are used to detect physical contact between the basketball and the rim.
 function createHoopCollisionSpheres(xPosition) {
-  const rimY = 3.05;
-  const rimRadius = 0.5;     // כמו בטבעת שלך
-  const ballRadius = 0.04;
-  const segments = 45;       // לפי החישוב שלנו
+  const rimY = 3.05;                   // Y height of the rim
+  const rimRadius = 0.5;              // Same radius as the actual rim
+  const ballRadius = 0.04;            // Radius of each invisible collision sphere
+  const segments = 45;                // Number of spheres distributed around the rim
 
-  const direction = xPosition === 15 ? 1 : -1;
-  const centerX = xPosition + direction * -0.55; // כמו הטבעת עצמה
+  const direction = xPosition === 15 ? 1 : -1; // Determine side (right/left)
+  const centerX = xPosition + direction * -0.55; // X position aligned with the hoop rim
   const centerZ = 0;
- 
-  const material = new THREE.MeshPhongMaterial({
-    color: 0x00ff00,
-    transparent: true,
-    opacity: 0.0  // או כל ערך בין 0 (שקוף לגמרי) ל־1 (אטום)
-  });// ירוק
 
+  const material = new THREE.MeshPhongMaterial({
+    color: 0x00ff00,                  // Green color (invisible)
+    transparent: true,
+    opacity: 0.0                      // Fully transparent – used only for physics
+  });
+
+  // Create spheres in a circular pattern around the rim
   for (let i = 0; i < segments; i++) {
     const angle = (i / segments) * Math.PI * 2;
     const x = centerX + rimRadius * Math.cos(angle);
@@ -879,9 +402,10 @@ function createHoopCollisionSpheres(xPosition) {
     sphere.position.set(x, rimY, z);
     sphere.castShadow = true;
     scene.add(sphere);
+
+    // Store for future collision detection
     collisionHoopSpheres.push(sphere);
   }
-  
 }
 
 
@@ -943,176 +467,133 @@ function addLogoRight(backboard, text = "MB") {
   });
 }
 
-function createBleachers() {
-  const bleacherMaterial = new THREE.MeshPhongMaterial({ color: 0x990000 }); // חומר בצבע אדום כהה
-  const heights = 5;            // מספר המדרגות בכל צד
-  const startY = 0.25;          // גובה המדרגה הראשונה
+// Draws the key area (painted area under each basket) including:
+// - White outline
+// - Red filled rectangle
+// - White semi-circle in front of each key
+function createKeyArea() {
+  const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff });
 
-  const courtWidth = 15;        // רוחב המגרש (בציר Z)
-  const courtLength = 30;       // אורך המגרש (בציר X)
+  // Red fill for the key
+  const fillMatRed = new THREE.MeshBasicMaterial({ 
+    color: 0xff0000, 
+    transparent: true, 
+    opacity: 0.5,
+    side: THREE.DoubleSide 
+  });
 
-  for (let i = 0; i < heights; i++) {
-    const height = 0.5;         // גובה כל מדרגה
-    const y = startY + i * height;  // מיקום Y של כל מדרגה
-    const stepDepth = 1.5;      // עומק מדרגה
-    const stepWidth = courtLength + 6 - i * 2; // המדרגות הולכות וצרות
+  // White fill for the semi-circle (free throw area)
+  const fillMatWhite = new THREE.MeshBasicMaterial({ 
+    color: 0xffffff,
+    transparent: true,
+    opacity: 0.6,
+    side: THREE.DoubleSide 
+  });
 
-    const boxGeometryFrontBack = new THREE.BoxGeometry(stepWidth, height, stepDepth); // קידמי/אחורי
-    const boxGeometrySides = new THREE.BoxGeometry(stepDepth, height, courtWidth + 6 - i * 2); // צדדים
+  // Dimensions
+  const halfCourtX   = 15;
+  const laneWidthZ   = 4.6;
+  const laneDepthX   = 5;
+  const circleRadius = 1.8;
+  const segments     = 32;
 
-    // FRONT (Z חיובי)
-    const front = new THREE.Mesh(boxGeometryFrontBack, bleacherMaterial);
-    front.castShadow = true;
-    front.receiveShadow = true;
-    front.position.set(0, y, courtWidth / 2 + stepDepth / 2 + i + 1);
-    scene.add(front);
+  // Create mirrored elements for both sides of the court
+  [ -1, +1 ].forEach(side => {
+    const innerX = side * (halfCourtX - laneDepthX); // near the center
+    const outerX = side * halfCourtX;                // edge of court
+    const leftZ  = -laneWidthZ / 2;
+    const rightZ = laneWidthZ / 2;
 
-    // BACK (Z שלילי)
-    const back = new THREE.Mesh(boxGeometryFrontBack, bleacherMaterial);
-    back.castShadow = true;
-    back.receiveShadow = true;
-    back.position.set(0, y, -courtWidth / 2 - stepDepth / 2 - i - 1);
-    scene.add(back);
+    // White rectangle outline
+    const boxPts = [
+      new THREE.Vector3(innerX, 0.11, leftZ),
+      new THREE.Vector3(outerX, 0.11, leftZ),
+      new THREE.Vector3(outerX, 0.11, rightZ),
+      new THREE.Vector3(innerX, 0.11, rightZ),
+      new THREE.Vector3(innerX, 0.11, leftZ),
+    ];
+    scene.add(new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints(boxPts),
+      lineMat
+    ));
 
-    // LEFT (X שלילי)
-    const left = new THREE.Mesh(boxGeometrySides, bleacherMaterial);
-    left.castShadow = true;
-    left.receiveShadow = true;
-    left.position.set(-courtLength / 2 - stepDepth / 2 - i - 1, y, 0);
-    scene.add(left);
+    // Red filled rectangle inside the key
+    const rectWidth = laneDepthX;
+    const rectDepth = laneWidthZ;
+    const rectGeometry = new THREE.PlaneGeometry(rectWidth, rectDepth);
+    const rectangle = new THREE.Mesh(rectGeometry, fillMatRed);
+    const midX = (innerX + outerX) / 2;
+    rectangle.rotation.x = -Math.PI / 2;
+    rectangle.position.set(midX, 0.101, 0);
+    scene.add(rectangle);
 
-    // RIGHT (X חיובי)
-    const right = new THREE.Mesh(boxGeometrySides, bleacherMaterial);
-    right.castShadow = true;
-    right.receiveShadow = true;
-    right.position.set(courtLength / 2 + stepDepth / 2 + i + 1, y, 0);
-    scene.add(right);
-  }
-}
+    // White filled semi-circle in front of the key (free throw arc)
+    const shape = new THREE.Shape();
+    for (let i = 0; i <= segments; i++) {
+      const t = (i / segments) * Math.PI;
+      const x = innerX - side * (circleRadius * Math.sin(t));
+      const z = circleRadius * Math.cos(t);
+      if (i === 0) {
+        shape.moveTo(x, z);
+      } else {
+        shape.lineTo(x, z);
+      }
+    }
+    shape.lineTo(innerX, 0);
+    shape.lineTo(innerX - side * (circleRadius * Math.sin(0)), circleRadius);
 
-
-function createScoreboard() {
-  const boardGeometry = new THREE.BoxGeometry(10, 3.5, 0.2);
-  const boardMaterial = new THREE.MeshPhongMaterial({ color: 0x222222 });
-  const scoreboard = new THREE.Mesh(boardGeometry, boardMaterial);
-  scoreboard.position.set(0, 7, -15);
-  scoreboard.name = 'scoreboard'; // נוסיף שם כדי למצוא אותו אחר כך
-  scene.add(scoreboard);
-
-  const loader = new THREE.FontLoader();
-  loader.load('https://threejs.org/examples/fonts/droid/droid_serif_regular.typeface.json', function (loadedFont) {
-    font = loadedFont;
-
-    // טקסט של הניקוד
-    const scoreGeometry = new THREE.TextGeometry(`Score: ${score}`, {
-      font: font,
-      size: 0.75,
-      height: 0.1,
-      curveSegments: 12,
-      bevelEnabled: true,
-      bevelThickness: 0.03,
-      bevelSize: 0.02,
-      bevelSegments: 3
-    });
-
-    // טיימר
-    const timerGeometry = new THREE.TextGeometry("00:00", {
-      font: font,
-      size: 0.75,
-      height: 0.05,
-      curveSegments: 10,
-    });
-
-    const timerMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
-    timerMesh = new THREE.Mesh(timerGeometry, timerMaterial);
-
-    timerGeometry.computeBoundingBox();
-    const timerWidth = timerGeometry.boundingBox.max.x - timerGeometry.boundingBox.min.x;
-    timerMesh.position.set(-timerWidth / 2, -1.3, 0.11);
-    scoreboard.add(timerMesh);
-
-    // ✅ רק אחרי שהכל מוכן – מתחילים את המשחק
-    resetGame();
-    startFreeModeClock();
+    const geometry = new THREE.ShapeGeometry(shape);
+    const mesh = new THREE.Mesh(geometry, fillMatWhite);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.set(0, 0.101, 0);
+    scene.add(mesh);
   });
 }
 
 
-function resetGame() {
-  score = 0;
-  shotsScored = 0;
-  shotsAttempted = 0;
-  comboCount = 0;
-  comboBonus = 0;
-  hitBackboard = false;
-  hitBackboardRight = false;
-  collidedDuringShot = false;
-  scoredThisShot = false;
+// Add additional light sources for enhanced lighting effects
+function addAdvancedLights() {
+  // SpotLight on the left hoop
+  const spotLeft = new THREE.SpotLight(0xffddaa, 0.5); // warm tone
+  spotLeft.position.set(-13, 8, 0); // above-left
+  spotLeft.target.position.set(-15, 3, 0); // aiming at the left hoop
+  spotLeft.angle = Math.PI / 8; // narrow cone
+  spotLeft.penumbra = 0.4; // softer edges
+  spotLeft.castShadow = true;
+  scene.add(spotLeft);
+  scene.add(spotLeft.target);
 
-  const statsEl = document.getElementById('stats');
-  if (statsEl) {
-    statsEl.innerHTML = `
-      Shots: 0<br>
-      Hits: 0<br>
-      Accuracy: 0.0%
-    `;
-  }
+  // SpotLight on the right hoop
+  const spotRight = new THREE.SpotLight(0xffddaa, 0.5); // same warm tone
+  spotRight.position.set(13, 8, 0); // above-right
+  spotRight.target.position.set(15, 3, 0); // aiming at the right hoop
+  spotRight.angle = Math.PI / 8;
+  spotRight.penumbra = 0.4;
+  spotRight.castShadow = true;
+  scene.add(spotRight);
+  scene.add(spotRight.target);
 
-  updateScoreboardScore();
-  updateScoreDisplay();
+  // Soft ambient hemisphere light (sky + ground blend)
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x222222, 0.2);
+  scene.add(hemi);
 
-  if (basketball) {
-    basketball.position.set(0, 0.5, 0);
-    velocity.set(0, 0, 0);
-    isShooting = false;
-    resetTrails();
-  }
+  // SpotLight above the center of the court
+  const centerSpot = new THREE.SpotLight(0xffffff, 0.2);
+  centerSpot.position.set(0, 12, 0); // top center
+  centerSpot.target.position.set(0, 0, 0); // pointing downward
+  centerSpot.angle = Math.PI / 9;
+  centerSpot.penumbra = 0.3;
+  centerSpot.castShadow = true;
+  scene.add(centerSpot);
+  scene.add(centerSpot.target);
+
 }
 
-
-
-function endTimedChallenge() {
-  isShooting = false;
-  updateHighScoreIfNeeded();
-
-
-  // ✨ שלב 1 – פידבק ויזואלי (אחרי 1 שנייה)
-  setTimeout(() => {
-    if (didWinChallenge) {
-      showFeedbackMessage("🎉 You won the challenge!", 'lime');
-    } else {
-      showFeedbackMessage("⏱ Time's Up!", 'gold');
-    }
-  }, 1000);
-
-  // ✨ שלב 2 – הצגת תוצאה עם alert (אחרי 2.5 שניות)
-  setTimeout(() => {
-    const percentage = shotsAttempted === 0
-      ? 0
-      : ((shotsScored / shotsAttempted) * 100).toFixed(1);
-
-    if (didWinChallenge) {
-      alert(`🏆 Success!\nYou scored ${score} points in ${10 - secondsLeft} seconds.\n\nFinal Score: ${score}\nShots Attempted: ${shotsAttempted}\nShots Scored: ${shotsScored}\nAccuracy: ${percentage}%`);
-    } else {
-      alert(`⏱ Challenge Over!\n\nYou didn’t reach the goal in time.\n\nFinal Score: ${score}\nShots Attempted: ${shotsAttempted}\nShots Scored: ${shotsScored}\nAccuracy: ${percentage}%`);
-    }
-  }, 1200);
-
-  // ✨ שלב 3 – ריסט למשחק (אחרי 4 שניות)
-  setTimeout(() => {
-    resetGame();
-    startFreeModeClock();
-    didWinChallenge = false;
-  }, 1200);
-  
-}
-
-
- 
+// Creates the main basketball object with realistic texture and visible seams
 function createBasketball() {
   const ballRadius = 0.35;
 
-  // יצירת הגיאומטריה והמרקם של הכדור
+  // Create ball geometry and apply basketball texture
   const ballGeometry = new THREE.SphereGeometry(ballRadius, 64, 64);
   const ballTexture = loader.load('src/textures/basketball.png');
   ballTexture.wrapS = THREE.ClampToEdgeWrapping;
@@ -1127,14 +608,15 @@ function createBasketball() {
   ballMesh.castShadow = true;
   ballMesh.receiveShadow = true;
 
-  // ✅ יצירת קבוצה שכוללת את כל מרכיבי הכדור
+  // Create a group to hold the ball and all its seams
   const basketballGroup = new THREE.Group();
   basketballGroup.add(ballMesh);
 
-  // יצירת התפרים
+  // Create decorative seam lines to mimic real basketball
   const segs = 64;
   const offset = ballRadius + 0.002;
 
+  // Helper: Create a circular seam on a given plane ('XZ' or 'YZ')
   function makeSeamCircle(plane) {
     const pts = [];
     for (let i = 0; i <= segs; i++) {
@@ -1144,7 +626,7 @@ function createBasketball() {
       if (plane === 'XZ') {
         x = offset * Math.cos(t);
         z = offset * Math.sin(t);
-      } else { // YZ
+      } else { // 'YZ'
         y = offset * Math.cos(t);
         z = offset * Math.sin(t);
       }
@@ -1158,43 +640,362 @@ function createBasketball() {
     return new THREE.Mesh(geometry, material);
   }
 
+  // Helper: Vertical seam rotation around Y-axis
   function makeVerticalSeamAtAngle(angleRadians) {
     const seam = makeSeamCircle('YZ');
     seam.rotation.y = angleRadians;
     return seam;
   }
 
+  // Helper: Vertical seam rotation around X-axis
   function makeVerticalSeamAroundX(angleRadians) {
     const seam = makeSeamCircle('XZ');
     seam.rotation.x = angleRadians;
     return seam;
   }
 
-  // הוספת התפרים לקבוצה
+  // Add seam decorations to the basketball group
   basketballGroup.add(makeVerticalSeamAtAngle(Math.PI / 2));
   basketballGroup.add(makeVerticalSeamAtAngle(-Math.PI / 2));
   basketballGroup.add(makeVerticalSeamAroundX(Math.PI / 4));
   basketballGroup.add(makeVerticalSeamAroundX(-Math.PI / 4));
-  basketballGroup.add(makeSeamCircle('XZ')); // Equator
+  basketballGroup.add(makeSeamCircle('XZ')); // Equator seam
 
-  // הצבה בסצנה
+  // Position the ball on the court and add to scene
   basketballGroup.position.set(0, ballRadius + 0.11, 0);
   scene.add(basketballGroup);
 
-  // שמירה ככדור הגלובלי שלך
+  // Assign to global reference for gameplay use
   basketball = basketballGroup;
 }
 
 
-function updatePowerDisplay() {
-  const el = document.getElementById("power");
-  if (el) el.innerText = `Power: ${Math.round(shotPower * 100)}%`;
+
+// Creates the main scoreboard with dynamic score text and a timer display
+function createScoreboard() {
+  const boardGeometry = new THREE.BoxGeometry(10, 3.5, 0.2); // Scoreboard size
+  const boardMaterial = new THREE.MeshPhongMaterial({ color: 0x222222 }); // Dark gray color
+  const scoreboard = new THREE.Mesh(boardGeometry, boardMaterial);
+  scoreboard.position.set(0, 7, -15); // Place above the court, behind the hoop
+  scoreboard.name = 'scoreboard'; // Assign a name for later access
+  scene.add(scoreboard);
+
+  const loader = new THREE.FontLoader();
+  loader.load('https://threejs.org/examples/fonts/droid/droid_serif_regular.typeface.json', function (loadedFont) {
+    font = loadedFont;
+
+    // Create 3D text for the current score
+    const scoreGeometry = new THREE.TextGeometry(`Score: ${score}`, {
+      font: font,
+      size: 0.75,
+      height: 0.1,
+      curveSegments: 12,
+      bevelEnabled: true,
+      bevelThickness: 0.03,
+      bevelSize: 0.02,
+      bevelSegments: 3
+    });
+
+    // Create 3D text for the timer (e.g., 01:00)
+    const timerGeometry = new THREE.TextGeometry("00:00", {
+      font: font,
+      size: 0.75,
+      height: 0.05,
+      curveSegments: 10,
+    });
+
+    const timerMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    timerMesh = new THREE.Mesh(timerGeometry, timerMaterial);
+
+    // Center the timer horizontally on the scoreboard
+    timerGeometry.computeBoundingBox();
+    const timerWidth = timerGeometry.boundingBox.max.x - timerGeometry.boundingBox.min.x;
+    timerMesh.position.set(-timerWidth / 2, -1.3, 0.11);
+    scoreboard.add(timerMesh);
+
+    // Initialize game after scoreboard is ready
+    resetGame();
+    startFreeModeClock();
+  });
 }
 
-function startFreeModeClock() {
-  clearInterval(currentClockInterval);
-  updateTimerDisplay(getCurrentTimeString());
 
+// Creates the red bleachers (audience seating) around the basketball court
+function createBleachers() {
+  const bleacherMaterial = new THREE.MeshPhongMaterial({ color: 0x990000 }); // Dark red material
+  const heights = 5;            // Number of steps/levels per side
+  const startY = 0.25;          // Starting Y position of the first step
+
+  const courtWidth = 15;        // Width of the court (Z-axis)
+  const courtLength = 30;       // Length of the court (X-axis)
+
+  for (let i = 0; i < heights; i++) {
+    const height = 0.5;         // Height of each step
+    const y = startY + i * height;  // Y position increases with each level
+    const stepDepth = 1.5;      // Depth of each step
+    const stepWidth = courtLength + 6 - i * 2; // Steps become narrower as they rise
+
+    const boxGeometryFrontBack = new THREE.BoxGeometry(stepWidth, height, stepDepth); // For front and back sides
+    const boxGeometrySides = new THREE.BoxGeometry(stepDepth, height, courtWidth + 6 - i * 2); // For left and right sides
+
+    // FRONT bleachers (positive Z direction)
+    const front = new THREE.Mesh(boxGeometryFrontBack, bleacherMaterial);
+    front.castShadow = true;
+    front.receiveShadow = true;
+    front.position.set(0, y, courtWidth / 2 + stepDepth / 2 + i + 1);
+    scene.add(front);
+
+    // BACK bleachers (negative Z direction)
+    const back = new THREE.Mesh(boxGeometryFrontBack, bleacherMaterial);
+    back.castShadow = true;
+    back.receiveShadow = true;
+    back.position.set(0, y, -courtWidth / 2 - stepDepth / 2 - i - 1);
+    scene.add(back);
+
+    // LEFT bleachers (negative X direction)
+    const left = new THREE.Mesh(boxGeometrySides, bleacherMaterial);
+    left.castShadow = true;
+    left.receiveShadow = true;
+    left.position.set(-courtLength / 2 - stepDepth / 2 - i - 1, y, 0);
+    scene.add(left);
+
+    // RIGHT bleachers (positive X direction)
+    const right = new THREE.Mesh(boxGeometrySides, bleacherMaterial);
+    right.castShadow = true;
+    right.receiveShadow = true;
+    right.position.set(courtLength / 2 + stepDepth / 2 + i + 1, y, 0);
+    scene.add(right);
+  }
+}
+
+/*=========================================================================
+  UI Elements & On-Screen Info Boxes
+  ========================================================================= */
+
+// === Bottom-left instructions box showing controls ===
+const instructionsElement = document.createElement('div');
+instructionsElement.style.position = 'absolute';
+instructionsElement.style.bottom = '20px';
+instructionsElement.style.left = '20px';
+instructionsElement.style.color = 'white';
+instructionsElement.style.fontSize = '16px';
+instructionsElement.style.fontFamily = 'Arial, sans-serif';
+instructionsElement.style.textAlign = 'left';
+instructionsElement.style.backgroundColor = 'rgba(0, 0, 0, 0.4)';
+instructionsElement.style.padding = '10px';
+instructionsElement.style.border = '1px solid white';
+instructionsElement.style.borderRadius = '6px';
+instructionsElement.innerHTML = `
+  <h3 style="margin: 0 0 5px 0;">Controls:</h3>
+  <p style="margin: 0;">O – Toggle Orbit Camera</p>
+`;
+document.body.appendChild(instructionsElement);
+
+// === Top-right panel displaying shot power and stats ===
+const infoBoxTopRight = document.createElement('div');
+infoBoxTopRight.style.position = 'absolute';
+infoBoxTopRight.style.top = '20px';
+infoBoxTopRight.style.right = '20px';
+infoBoxTopRight.style.zIndex = '9999';
+infoBoxTopRight.style.padding = '10px';
+infoBoxTopRight.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+infoBoxTopRight.style.border = '1px solid white';
+infoBoxTopRight.style.borderRadius = '12px'; // Rounded corners
+infoBoxTopRight.style.fontSize = '16px';
+infoBoxTopRight.style.color = 'white';
+infoBoxTopRight.style.fontFamily = 'Arial, sans-serif'; // Font styling
+infoBoxTopRight.style.width = '150px';          // Fixed width
+infoBoxTopRight.style.display = 'flex';
+infoBoxTopRight.style.flexDirection = 'column';
+infoBoxTopRight.style.gap = '6px';
+infoBoxTopRight.style.alignItems = 'flex-start';
+infoBoxTopRight.style.textAlign = 'left';
+
+// === Power display element ===
+const powerElement = document.createElement('div');
+powerElement.id = "power";
+powerElement.innerText = `Power: ${Math.round(shotPower * 100)}%`;
+
+// === Stats display element ===
+const statsElement = document.createElement('div');
+statsElement.id = "stats";
+statsElement.style.textAlign = 'left';
+statsElement.innerHTML = `
+  Shots: 0<br>
+  Hits: 0<br>
+  Accuracy: 0.0%
+`;
+
+// === Add power and stats to info box ===
+infoBoxTopRight.appendChild(powerElement);
+infoBoxTopRight.appendChild(statsElement);
+document.body.appendChild(infoBoxTopRight);
+
+// === Combo message element (centered, appears after multiple hits) ===
+const comboEl = document.createElement('div');
+comboEl.id = "comboMessage";
+comboEl.style.position = 'absolute';
+comboEl.style.top = '60%'; // Slightly above center
+comboEl.style.left = '50%';
+comboEl.style.transform = 'translateX(-50%)';
+comboEl.style.fontSize = '30px';
+comboEl.style.fontWeight = 'bold';
+comboEl.style.color = 'gold';
+comboEl.style.textShadow = '2px 2px 4px #000';
+comboEl.style.opacity = '0';
+comboEl.style.transition = 'opacity 0.5s ease-out';
+comboEl.style.pointerEvents = 'none';
+comboEl.style.zIndex = '9999';
+document.body.appendChild(comboEl);
+
+// === High Score box (top-right corner, left of the stats box) ===
+const el = document.createElement('div');
+el.id = 'highScoreBox';
+el.style.position = 'absolute';
+el.style.top = '20px';
+el.style.right= '220px'; // Positioned to the left of the stats box
+el.style.padding = '10px';
+el.style.background = 'rgba(0, 0, 0, 0.7)';
+el.style.color = 'gold';
+el.style.fontSize = '18px';
+el.style.fontWeight = 'bold';
+el.style.border = '2px solid gold';
+el.style.borderRadius = '10px';
+el.style.zIndex = '9999';
+el.innerText = `🏅 High Score: ${localStorage.getItem("highScore") || 0}`;
+document.body.appendChild(el);
+
+// === Game mode selection menu (top-left corner) ===
+const modeMenu = document.createElement('div');
+modeMenu.style.position = 'absolute';
+modeMenu.style.top = '20px';               // Top-left corner
+modeMenu.style.left = '20px';
+modeMenu.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+modeMenu.style.padding = '10px';
+modeMenu.style.border = '1px solid white';
+modeMenu.style.borderRadius = '8px';
+modeMenu.style.zIndex = '9999';
+modeMenu.style.display = 'flex';
+modeMenu.style.flexDirection = 'column';   // Stack buttons vertically
+modeMenu.style.gap = '10px';
+
+// === Game mode buttons ===
+const freeBtn = document.createElement('button');
+freeBtn.textContent = 'Free Shoot';
+
+const timedBtn = document.createElement('button');
+timedBtn.textContent = 'Timed Challenge';
+
+// === Style both buttons consistently ===
+[freeBtn, timedBtn].forEach(btn => {
+  btn.style.width = '160px';              // Uniform width
+  btn.style.height = '40px';              // Uniform height
+  btn.style.fontSize = '16px';
+  btn.style.fontWeight = 'bold';
+  btn.style.border = 'none';
+  btn.style.borderRadius = '6px';
+  btn.style.cursor = 'pointer';
+  btn.style.backgroundColor = '#ffffff';
+  btn.style.color = '#000000';
+});
+
+// === Add buttons to mode menu and attach to document ===
+modeMenu.appendChild(freeBtn);
+modeMenu.appendChild(timedBtn);
+document.body.appendChild(modeMenu);
+
+
+
+/* =========================================================================
+   Game Mode Initialization
+   ========================================================================= */
+
+ // === Free Mode Button Logic ===
+// Starts a free shooting session with no time or score limit
+freeBtn.onclick = () => {
+  freeBtn.blur();                      // Remove focus from button
+  isTimedChallenge = false;           // Disable challenge mode
+  clearInterval(currentClockInterval); // Stop any active timer
+
+  resetGame();                        // Reset stats and position
+  startFreeModeClock();               // Start real-time clock display
+};
+
+const targetScore = 50;               // Score required to win challenge
+let secondsLeft = 60;                 // Challenge duration in seconds
+
+// === Timed Challenge Button Logic ===
+// Starts a timed mode where player has 60 seconds to reach the target score
+timedBtn.onclick = () => {
+  timedBtn.blur();                    // Remove focus
+  clearInterval(currentClockInterval); // Clear previous interval
+  secondsLeft = 60;                   // Reset timer
+  isTimedChallenge = true;           // Enable challenge mode
+  resetGame();                        // Reset state
+
+  updateTimerDisplay(`01:00`);       // Show initial timer
+
+  // Start countdown timer
+  currentClockInterval = setInterval(() => {
+    secondsLeft--;
+
+    // Update timer display in mm:ss format
+    updateTimerDisplay(
+      `${Math.floor(secondsLeft / 60).toString().padStart(2, '0')}:${(secondsLeft % 60).toString().padStart(2, '0')}`
+    );
+
+    // If player reaches score before time is up
+    if (score >= targetScore) {
+      clearInterval(currentClockInterval);
+      isTimedChallenge = false;
+      handleWin();                   // Handle victory
+      return;
+    }
+
+    // If time runs out before reaching score
+    if (secondsLeft <= 0) {
+      clearInterval(currentClockInterval);
+      isTimedChallenge = false;
+      endTimedChallenge();           // Handle loss
+    }
+  }, 1000); // Runs every second
+};
+
+// === Called when the player wins the timed challenge ===
+function handleWin() {
+  didWinChallenge = true;
+  endTimedChallenge(); // Delegate to shared function
+}
+
+// === Updates the scoreboard timer text ===
+function updateTimerDisplay(text) {
+  if (!timerMesh) return;
+
+  const loader = new THREE.FontLoader();
+  loader.load('https://threejs.org/examples/fonts/droid/droid_serif_regular.typeface.json', function (font) {
+    const newGeometry = new THREE.TextGeometry(text, {
+      font: font,
+      size: 0.75,
+      height: 0.05,
+      curveSegments: 10
+    });
+
+    newGeometry.computeBoundingBox();
+    const newWidth = newGeometry.boundingBox.max.x - newGeometry.boundingBox.min.x;
+
+    // Replace previous timer text
+    timerMesh.geometry.dispose();
+    timerMesh.geometry = newGeometry;
+    timerMesh.position.set(-newWidth / 2, -1.3, 0.11); // Centered
+  });
+}
+
+// === Starts live clock updates for free shoot mode ===
+function startFreeModeClock() {
+  clearInterval(currentClockInterval); // Clear previous timer if any
+  updateTimerDisplay(getCurrentTimeString()); // Show current time
+
+  // Update clock every second (only if not in challenge mode)
   currentClockInterval = setInterval(() => {
     if (!isTimedChallenge) {
       updateTimerDisplay(getCurrentTimeString());
@@ -1202,22 +1003,188 @@ function startFreeModeClock() {
   }, 1000);
 }
 
+// === Gets current system time formatted as HH:MM:SS ===
 function getCurrentTimeString() {
   const now = new Date();
   return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
 
+// === Called when timed challenge ends (win or lose) ===
+function endTimedChallenge() {
+  isShooting = false;
+  updateHighScoreIfNeeded(); // Save new high score if needed
 
+  // Step 1: Show visual feedback after 1 second
+  setTimeout(() => {
+    if (didWinChallenge) {
+      showFeedbackMessage("🎉 You won the challenge!", 'lime');
+    } else {
+      showFeedbackMessage("⏱ Time's Up!", 'gold');
+    }
+  }, 1000);
+
+  // Step 2: Show final score and stats in alert after 1.2s
+  setTimeout(() => {
+    const percentage = shotsAttempted === 0
+      ? 0
+      : ((shotsScored / shotsAttempted) * 100).toFixed(1);
+
+    if (didWinChallenge) {
+      alert(`🏆 Success!\nYou scored ${score} points in ${60 - secondsLeft} seconds.\n\nFinal Score: ${score}\nShots Attempted: ${shotsAttempted}\nShots Scored: ${shotsScored}\nAccuracy: ${percentage}%`);
+    } else {
+      alert(`⏱ Challenge Over!\n\nYou didn’t reach the goal in time.\n\nFinal Score: ${score}\nShots Attempted: ${shotsAttempted}\nShots Scored: ${shotsScored}\nAccuracy: ${percentage}%`);
+    }
+  }, 1200);
+
+  // Step 3: Restart game and clock after 1.2s
+  setTimeout(() => {
+    resetGame();
+    startFreeModeClock();
+    didWinChallenge = false; // Reset flag
+  }, 1200);
+}
+
+/* =========================================================================
+   6. User Input Handling
+   ========================================================================= */ 
+
+// === Keydown Event Listener ===
+// Handles player movement, shot power adjustment, shooting, and ball reset
+document.addEventListener('keydown', (e) => {
+  switch (e.key) {
+    // Movement controls
+    case 'ArrowLeft': moveLeft = true; break;
+    case 'ArrowRight': moveRight = true; break;
+    case 'ArrowUp': moveForward = true; break;
+    case 'ArrowDown': moveBackward = true; break;
+
+    // Increase shot power (W key)
+    case 'w':
+    case 'W':
+      shotPower = Math.min(maxPower, shotPower + powerStep);
+      updatePowerDisplay();
+      break;
+
+    // Decrease shot power (S key)
+    case 's':
+    case 'S':
+      shotPower = Math.max(minPower, shotPower - powerStep);
+      updatePowerDisplay();
+      break;
+
+    // Shoot the ball (spacebar)
+    case ' ':
+      if (!isShooting) shootBall();
+      break;
+
+    // Reset the ball to center (R key)
+    case 'r':
+    case 'R':
+      if (basketball) {
+        basketball.position.set(0, 0.5, 0);  // Reset to center
+        velocity.set(0, 0, 0);              // Stop motion
+        isShooting = false;                 // Cancel shot state
+        shotPower = 0.5;                    // Reset default power
+        updatePowerDisplay();               // Update UI
+        showFeedbackMessage("Ball reset");  // Visual feedback
+      }
+      break;
+  }
+});
+
+// === Keyup Event Listener ===
+// Stops player movement when arrow keys are released
+document.addEventListener('keyup', (e) => {
+  switch (e.key) {
+    case 'ArrowLeft': moveLeft = false; break;
+    case 'ArrowRight': moveRight = false; break;
+    case 'ArrowUp': moveForward = false; break;
+    case 'ArrowDown': moveBackward = false; break;
+  }
+});
+
+
+// Handle keyboard input for camera control and orbit toggle
+function handleKeyDown(e) {
+  // Toggle orbit controls with "o"
+  if (e.key === "o") {
+    isOrbitEnabled = !isOrbitEnabled;
+  }
+
+  // Camera preset views (1–4)
+
+  // Top-down view (bird’s eye)
+  if (e.key === "1") {
+    camera.position.set(0, 30, 0);
+    camera.lookAt(0, 0, 0);
+  }
+
+  // Behind scoreboard view
+  if (e.key === "2") {
+    camera.position.set(0, 5, -25);
+    camera.lookAt(0, 5, 0);
+  }
+
+  // Classic default viewing angle
+  if (e.key === "3") {
+    camera.position.set(0, 15, 30);
+    camera.lookAt(0, 0, 0);
+  }
+
+  // Side view (from sidelines)
+  if (e.key === "4") {
+    camera.position.set(25, 5, 0);
+    camera.lookAt(0, 0, 0);
+  }
+  
+}
+
+// === Resets all game variables and UI elements to default state ===
+function resetGame() {
+  score = 0;
+  shotsScored = 0;
+  shotsAttempted = 0;
+  comboCount = 0;
+  comboBonus = 0;
+  hitBackboard = false;
+  hitBackboardRight = false;
+  collidedDuringShot = false;
+  scoredThisShot = false;
+
+  // Reset the stats display box
+  const statsEl = document.getElementById('stats');
+  if (statsEl) {
+    statsEl.innerHTML = `
+      Shots: 0<br>
+      Hits: 0<br>
+      Accuracy: 0.0%
+    `;
+  }
+
+  // Reset scoreboard and power UI
+  updateScoreboardScore();
+  updateScoreDisplay();
+
+  // Reset ball position and velocity
+  if (basketball) {
+    basketball.position.set(0, 0.5, 0);
+    velocity.set(0, 0, 0);
+    isShooting = false;
+    resetTrails();
+  }
+}
+
+// === Triggers when the player shoots the ball ===
 function shootBall() {
   if (!basketball) return;
 
   isShooting = true;
   collidedDuringShot = false;
-  scoredThisShot = false; // ✅ אפסנו
+  scoredThisShot = false; // ✅ reset score flag
   shotsAttempted++;
   updateScoreDisplay();
 
-
+  // Calculate shot direction and power
   const ballPos = basketball.position.clone();
   currentTargetHoop = getNearestHoop(ballPos);
   shotHoopCenter = new THREE.Vector3(currentTargetHoop.x, 3.05, currentTargetHoop.z);
@@ -1231,6 +1198,7 @@ function shootBall() {
   const horizontalSpeed = shotPower * 6;
   const verticalSpeed = shotPower * 16;
 
+  // Set velocity vector for the shot
   velocity = new THREE.Vector3(
     horizontalDir.x * horizontalSpeed,
     verticalSpeed,
@@ -1238,27 +1206,30 @@ function shootBall() {
   );
 }
 
-
+// === Returns the closest hoop to the ball position ===
 function getNearestHoop(ballPos) {
   const distToRight = ballPos.distanceTo(rimRight);
   const distToLeft = ballPos.distanceTo(rimLeft);
   return distToRight < distToLeft ? rimRight : rimLeft;
 }
 
-
-
-
-// Add key listener to handle camera controls or other events
+// === Optional listener for handling extra keys (e.g. camera views) ===
 document.addEventListener('keydown', handleKeyDown);
 
-function animate() {
+
+/* =========================================================================
+   Game Loop & Frame Updates
+   ========================================================================= */
+
+  function animate() {
   requestAnimationFrame(animate);
   const delta = clock.getDelta();
 
+  // Update orbit controls
   controls.enabled = isOrbitEnabled;
   controls.update();
 
-  // 🎇 Update fireworks
+  //Update fireworks animations
   for (let i = fireworks.length - 1; i >= 0; i--) {
     if (!fireworks[i](delta)) fireworks.splice(i, 1);
   }
@@ -1266,21 +1237,24 @@ function animate() {
   if (basketball) {
     const pos = basketball.position;
 
+    // === Ball movement (when not shooting) ===
     if (!isShooting) {
       if (moveLeft && pos.x > -14.5) pos.x -= movementSpeed;
       if (moveRight && pos.x < 14.5) pos.x += movementSpeed;
       if (moveForward && pos.z > -7.1) pos.z -= movementSpeed;
       if (moveBackward && pos.z < 7.1) pos.z += movementSpeed;
 
-      // 🧹 Clear trail when ball is not shooting
+      // Clear trail when ball is not shooting
       resetTrails(); 
     }
 
+    // === Ball movement (when shooting) ===
     if (isShooting) {
+      // Apply gravity
       velocity.y += gravity * timeStep;
       basketball.position.add(velocity.clone().multiplyScalar(timeStep));
 
-      // 💫 Add to trail – חדש: 3 שובלים
+      //Add trail points for visual effect
       const pos = basketball.position.clone();
       const direction = velocity.clone().normalize();
       const sideways = new THREE.Vector3().crossVectors(direction, new THREE.Vector3(0, 1, 0)).multiplyScalar(0.35);
@@ -1288,18 +1262,18 @@ function animate() {
       trailMain.push(pos.clone());
       trailLeft.push(pos.clone().add(sideways));
       trailRight.push(pos.clone().sub(sideways));
-      trailUpper.push(pos.clone().add(new THREE.Vector3(0, 0.35, 0))); // למעלה
-      trailLower.push(pos.clone().add(new THREE.Vector3(0, -0.35, 0))); // למטה
+      trailUpper.push(pos.clone().add(new THREE.Vector3(0, 0.35, 0))); // upward trail
+      trailLower.push(pos.clone().add(new THREE.Vector3(0, -0.35, 0))); // downward trail
 
-      const fadeStep = 2; // כמה נקודות למחוק כל פריים (כדי שיהיה בהדרגה)
-
+      // Limit trail size for fade effect
+      const fadeStep = 2;
       if (trailMain.length > maxTrailLength) trailMain.splice(0, fadeStep);
       if (trailLeft.length > maxTrailLength - 5) trailLeft.splice(0, fadeStep);
       if (trailRight.length > maxTrailLength - 5) trailRight.splice(0, fadeStep);
       if (trailUpper.length > maxTrailLength - 5) trailUpper.splice(0, fadeStep);
       if (trailLower.length > maxTrailLength - 5) trailLower.splice(0, fadeStep);
 
-    // עדכון גיאומטריה – גרסה מעובה עם תזוזה אופקית
+      // Update trail geometry (thickened version with horizontal offset)
       const updateTrailGeometry = (geometry, trailPoints, offset = new THREE.Vector3(0, 0, 0)) => {
         const positions = [];
         for (let p of trailPoints) {
@@ -1314,211 +1288,207 @@ function animate() {
       updateTrailGeometry(trailGeometryRight, trailRight);
       updateTrailGeometry(trailGeometryUpper, trailUpper);
       updateTrailGeometry(trailGeometryLower, trailLower);
+    }
 
+    //Ball rotation during flight
+    const moveDir = velocity.clone().normalize();
+    const up = new THREE.Vector3(0, 1, 0);
+    const rotationAxis = new THREE.Vector3().crossVectors(moveDir, up).normalize();
+    const rotationSpeed = velocity.length();
+    basketball.rotateOnAxis(rotationAxis, rotationSpeed * 1.0 * timeStep);
 
+    //Collision boundaries with court edges
+    if (pos.z < -7.1) { basketball.position.z = -7.1; if (velocity.z < 0) velocity.z *= -0.6; }
+    if (pos.z > 7.1)  { basketball.position.z = 7.1;  if (velocity.z > 0) velocity.z *= -0.6; }
+    if (pos.x < -14.5){ basketball.position.x = -14.5;if (velocity.x < 0) velocity.x *= -0.6; }
+    if (pos.x > 14.5) { basketball.position.x = 14.5; if (velocity.x > 0) velocity.x *= -0.6; }
+
+    //Check for collision with hoop spheres
+    checkHoopSphereCollision();
+
+    //Left backboard collision detection
+    const ballRadius = 0.35;
+    const boardCenterX = -15;
+    const boardYCenter = 3.7;
+    const boardZCenter = 0;
+    const boardHeight = 1.8;
+    const boardDepth = 3.5;
+
+    const boardRightEdge = boardCenterX + 0.2;
+    const boardYMin = boardYCenter - boardHeight / 2 + 0.8;
+    const boardYMax = boardYCenter + boardHeight / 2;
+    const boardZMin = boardZCenter - boardDepth / 2;
+    const boardZMax = boardZCenter + boardDepth / 2;
+
+    const ballLeftEdge = pos.x - ballRadius;
+    const ballYMin = pos.y - ballRadius;
+    const ballYMax = pos.y + ballRadius;
+    const ballZMin = pos.z - ballRadius;
+    const ballZMax = pos.z + ballRadius;
+
+    const inY = ballYMax >= boardYMin && ballYMin <= boardYMax;
+    const inZ = ballZMax >= boardZMin && ballZMin <= boardZMax;
+    const hitX = boardRightEdge >= ballLeftEdge;
+
+    if (hitX && inY && inZ && !hitBackboard) {
+      console.log("💥 Hit left backboard!");
+      hitBackboard = true;
+      basketballsound.currentTime = 0;
+      basketballsound.play();
+    }
+
+    //Right backboard collision detection
+    const boardCenterXRight = 15;
+    const boardRightEdgeLeft = boardCenterXRight - 0.2;
+    const ballRightEdge = pos.x + ballRadius;
+
+    const hitXRight = ballRightEdge >= boardRightEdgeLeft;
+    const inYRight = inY;
+    const inZRight = inZ;
+
+    if (hitXRight && inYRight && inZRight && !hitBackboardRight) {
+      console.log("💥 Hit right backboard!");
+      hitBackboardRight = true;
+      basketballsound.currentTime = 0;
+      basketballsound.play();
+    }
+
+    //Check for successful shot
+    const rimY = 3.05;
+    const isGoingDown = velocity.y < 0;
+    const justPassedRim = prevY > rimY && pos.y <= rimY;
+    const isLow = basketball.position.y <= 1.5;
+
+    if (isShooting && isGoingDown && !scoredThisShot) {
+      const rimCenter = shotHoopCenter;
+      const horizontalDist = new THREE.Vector2(pos.x - rimCenter.x, pos.z - rimCenter.z).length();
+      const isFallingStraight = Math.abs(velocity.x) < 6 && Math.abs(velocity.z) < 6;
+
+      if (pos.y < 3.05 + 0.2) {
+        console.log("🔍 Shot check", {
+          justPassedRim,
+          horizontalDist: horizontalDist.toFixed(3),
+          yDiff: Math.abs(pos.y - rimY).toFixed(3),
+          isFallingStraight,
+          velocityX: velocity.x.toFixed(2),
+          velocityZ: velocity.z.toFixed(2),
+          posY: pos.y.toFixed(3)
+        });
       }
 
-      // 🌀 Rotation
-      const moveDir = velocity.clone().normalize();
-      const up = new THREE.Vector3(0, 1, 0);
-      const rotationAxis = new THREE.Vector3().crossVectors(moveDir, up).normalize();
-      const rotationSpeed = velocity.length();
-      basketball.rotateOnAxis(rotationAxis, rotationSpeed * 1.0 * timeStep);
+      //Mark shot as evaluated
+      scoredThisShot = true;
 
-      // Boundaries
-      if (pos.z < -7.1) { basketball.position.z = -7.1; if (velocity.z < 0) velocity.z *= -0.6; }
-      if (pos.z > 7.1)  { basketball.position.z = 7.1;  if (velocity.z > 0) velocity.z *= -0.6; }
-      if (pos.x < -14.5){ basketball.position.x = -14.5;if (velocity.x < 0) velocity.x *= -0.6; }
-      if (pos.x > 14.5) { basketball.position.x = 14.5; if (velocity.x > 0) velocity.x *= -0.6; }
+      //Successful shot conditions
+      if (justPassedRim && horizontalDist < 0.7 && Math.abs(pos.y - rimY) < 0.3 && isFallingStraight) {
+        shotsScored++;
+        comboCount++;
+        const bonus = comboCount > 1 ? comboCount - 1 : 0;
+        const pointsThisShot = 2 + bonus;
+        score += pointsThisShot;
+        updateScoreDisplay();
+        updateScoreboardScore();
+        showComboMessage(comboCount);
+        updateHighScoreIfNeeded();
+        cheerSound.currentTime = 0;
+        cheerSound.play();
 
-      // 💥 Collision with hoop spheres
-      checkHoopSphereCollision();
-
-      // 🔍 Backboard collision
-      const ballRadius = 0.35;
-      const boardCenterX = -15;
-      const boardYCenter = 3.7;
-      const boardZCenter = 0;
-      const boardHeight = 1.8;
-      const boardDepth = 3.5;
-
-      const boardRightEdge = boardCenterX + 0.2;
-      const boardYMin = boardYCenter - boardHeight / 2 + 0.8;
-      const boardYMax = boardYCenter + boardHeight / 2;
-      const boardZMin = boardZCenter - boardDepth / 2;
-      const boardZMax = boardZCenter + boardDepth / 2;
-
-      const ballLeftEdge = pos.x - ballRadius;
-      const ballYMin = pos.y - ballRadius;
-      const ballYMax = pos.y + ballRadius;
-      const ballZMin = pos.z - ballRadius;
-      const ballZMax = pos.z + ballRadius;
-
-      const inY = ballYMax >= boardYMin && ballYMin <= boardYMax;
-      const inZ = ballZMax >= boardZMin && ballZMin <= boardZMax;
-      const hitX = boardRightEdge >= ballLeftEdge;
-
-      if (hitX && inY && inZ && !hitBackboard) {
-        console.log("💥 פגיעה בלוח השמאלי!");
-        hitBackboard = true;
-        basketballsound.currentTime = 0;
-        basketballsound.play();
-      }
-
-
-      // 🔍 Backboard collision – לוח ימני
-      const boardCenterXRight = 15;
-      const boardRightEdgeLeft = boardCenterXRight - 0.2;  // הצד השמאלי של הלוח הימני
-      const ballRightEdge = pos.x + ballRadius;
-
-      const hitXRight = ballRightEdge >= boardRightEdgeLeft;
-      const inYRight = inY;  // אפשר להשתמש באותו טווח Y
-      const inZRight = inZ;  // ואותו דבר ל־Z
-
-      if (hitXRight && inYRight && inZRight && !hitBackboardRight) {
-        console.log("💥 פגיעה בלוח הימני!");
-        hitBackboardRight = true;
-        basketballsound.currentTime = 0;
-        basketballsound.play();
-      }
-
-      const rimY = 3.05;
-      const isGoingDown = velocity.y < 0;
-      const justPassedRim = prevY > rimY && pos.y <= rimY;
-      const isLow = basketball.position.y <= 1.5;
-
-      if (isShooting && isGoingDown && !scoredThisShot) {
-        const rimCenter = shotHoopCenter;
-        const horizontalDist = new THREE.Vector2(pos.x - rimCenter.x, pos.z - rimCenter.z).length();
-        const isFallingStraight = Math.abs(velocity.x) < 6 && Math.abs(velocity.z) < 6;
-
-        // נחשב ניסיון ברגע שנכנסים
-        scoredThisShot = true;
-      
-        if (justPassedRim && horizontalDist < 0.7 && Math.abs(pos.y - rimY) < 0.3 && isFallingStraight) {
-          // ✅ הצלחה
-          shotsScored++;
-          comboCount++;
-          const bonus = comboCount > 1 ? comboCount - 1 : 0;
-          const pointsThisShot = 2 + bonus;
-          score += pointsThisShot;
-          updateScoreDisplay();
-          updateScoreboardScore();
-          showComboMessage(comboCount);
-          updateHighScoreIfNeeded();
-          cheerSound.currentTime = 0;
-          cheerSound.play();
-        
-          if (!collidedDuringShot && !hitBackboard && !hitBackboardRight) {
-            showFeedbackMessage("SWISH!", 'gold');
-            setTimeout(() => createHoopFireworks(), 200);
-            createHoopFireworks();
-          } else {
-            showFeedbackMessage("SHOT MADE!", 'lightgreen');
-          }
-        } else if (justPassedRim || isLow) {
-          // ❌ פספוס – אם עבר את גובה הסל אבל לא הצליח, או זריקה שלא עלתה מספיק
-          comboCount = 0;
-          booSound.currentTime = 0;
-          booSound.play();
-          updateScoreDisplay();
-          showFeedbackMessage("MISSED SHOT", 'tomato');
+        if (!collidedDuringShot && !hitBackboard && !hitBackboardRight) {
+          showFeedbackMessage("SWISH!", 'gold');
+          setTimeout(() => createHoopFireworks(), 200);
+          createHoopFireworks();
         } else {
-          // אם עוד לא ירד מספיק – נחכה לפריים הבא
-          scoredThisShot = false; // מחזיר למצב שמחכה לפספוס אמיתי
+          showFeedbackMessage("SHOT MADE!", 'lightgreen');
         }
-      }
-
-
-      // 🪵 Bounce on floor
-      if (pos.y <= 0.5) {
-        basketball.position.y = 0.5;
-        if (Math.abs(velocity.y) > 1) {
-          velocity.y *= -0.6;
-          velocity.x *= 0.5;
-          velocity.z *= 0.5;
-          basketballsound.currentTime = 0;
-          basketballsound.play();
-        } else {
-          velocity.set(0, 0, 0);
-          isShooting = false;
-        }
-
-        // Reset backboard flag
-        hitBackboardRight = false;
-        hitBackboard = false;
-        resetTrails();
+      } else if (justPassedRim || isLow) {
+        //Missed shot
+        comboCount = 0;
+        booSound.currentTime = 0;
+        booSound.play();
+        updateScoreDisplay();
+        showFeedbackMessage("MISSED SHOT", 'tomato');
+      } else {
+        // Wait for more descent
+        scoredThisShot = false;
       }
     }
 
-    // 🎯 הגנה נוספת – אם הכדור כמעט לא זז, נחשב כסיים תנועה
-    if (isShooting && velocity.length() < 0.05) {
+    //Ball bounce on floor
+    if (pos.y <= 0.5) {
+      basketball.position.y = 0.5;
+      if (Math.abs(velocity.y) > 1) {
+        velocity.y *= -0.6;
+        velocity.x *= 0.5;
+        velocity.z *= 0.5;
+        basketballsound.currentTime = 0;
+        basketballsound.play();
+      } else {
+        velocity.set(0, 0, 0);
+        isShooting = false;
+      }
+
+      // Reset flags after bounce
+      hitBackboardRight = false;
+      hitBackboard = false;
       resetTrails();
     }
-
-
-    prevY = basketball.position.y;
-    renderer.render(scene, camera);
-
   }
 
+  //Auto-stop: if ball is barely moving
+  if (isShooting && velocity.length() < 0.05) {
+    resetTrails();
+  }
 
+  // Save previous Y position for rim check
+  prevY = basketball.position.y;
+
+  // Render scene
+  renderer.render(scene, camera);
+}
+
+
+/* =========================================================================
+   Physics & Collisions
+   ========================================================================= */
 
 function checkHoopSphereCollision() {
   const ballRadius = 0.35;
   const sphereRadius = 0.04;
-  const minDist = ballRadius + sphereRadius;
+  const minDist = ballRadius + sphereRadius; // Minimum allowed distance to avoid overlap
 
   for (let sphere of collisionHoopSpheres) {
     const dist = basketball.position.distanceTo(sphere.position);
 
     if (dist < minDist) {
-      collidedDuringShot = true;
+      collidedDuringShot = true; // Mark that a collision occurred during the shot
 
+      // Calculate direction to push ball away from sphere
       const direction = basketball.position.clone().sub(sphere.position).normalize();
       const corrected = sphere.position.clone().add(direction.multiplyScalar(minDist));
-      basketball.position.copy(corrected);
+      basketball.position.copy(corrected); // Push the ball out of the sphere
 
-      // ✅ שינוי: הוספנו דחיפה קטנה החוצה
+      // Apply outward velocity boost and slight upward push
       velocity.copy(direction.multiplyScalar(velocity.length() * 0.9));
-      velocity.y += 0.5; // דחיפה כלפי מעלה כדי לשחרר אותו
+      velocity.y += 0.5; // Add upward impulse
 
-      console.log("💥 התנגשות עם ספרה בטבעת!");
+      console.log("Collision with hoop sphere!");
       basketballsound.currentTime = 0;
       basketballsound.play();
-      return true;
+      return true; // Collision detected
     }
   }
-  return false;
+  return false; // No collision
 }
 
-
-
-
-function updateScoreDisplay() {
-  const stats = document.getElementById("stats");
-  const power = document.getElementById("power");
-  const scoreElement = document.getElementById("score"); // ✅ הוספנו שורה זו
-  if (!stats || !power) return;
-
-
-  const percentage = shotsAttempted === 0
-    ? 0
-    : ((shotsScored / shotsAttempted) * 100).toFixed(1);
-
-  stats.innerHTML = `
-    Shots: ${shotsAttempted}<br>
-    Hits: ${shotsScored}<br>
-    Accuracy: ${percentage}%
-  `;
-  power.innerText = `Power: ${Math.round(shotPower * 100)}%`;
-}
-
+ /* =========================================================================
+    Visual Effects & Feedback
+    ========================================================================= */  
 
 function showFeedbackMessage(text, color = 'white') {
   let feedbackElement = document.getElementById('feedback');
 
   if (!feedbackElement) {
+    // Create the feedback message element if it doesn't exist
     feedbackElement = document.createElement('div');
     feedbackElement.id = 'feedback';
     feedbackElement.style.position = 'absolute';
@@ -1536,11 +1506,12 @@ function showFeedbackMessage(text, color = 'white') {
     document.body.appendChild(feedbackElement);
   }
 
+  // Set text and color
   feedbackElement.textContent = text;
   feedbackElement.style.color = color;
   feedbackElement.style.opacity = '1';
 
-  // אותו אפקט כמו comboMessage
+  // Apply scale animation for appearance effect
   feedbackElement.animate([
     { transform: 'translate(-50%, -50%) scale(1.2)', opacity: 1 },
     { transform: 'translate(-50%, -50%) scale(1)', opacity: 1 }
@@ -1549,26 +1520,26 @@ function showFeedbackMessage(text, color = 'white') {
     easing: 'ease-out'
   });
 
+  // Fade out after a short delay
   setTimeout(() => {
     feedbackElement.style.opacity = '0';
   }, 1500);
 }
 
 
-
 function showComboMessage(comboCount) {
   if (comboCount <= 1) return;
 
   const el = document.getElementById("comboMessage");
-  if (!el) return; // ✅ הגנה במקרה שהאלמנט לא קיים
+  if (!el) return; // Skip if element is not present
 
   const bonus = comboCount - 1;
-  const comboText = `COMBO x${comboCount-1}! +${bonus} Bonus`;
+  const comboText = `COMBO x${comboCount - 1}! +${bonus} Bonus`;
 
   el.textContent = comboText;
   el.style.opacity = '1';
 
-  // אפקט קפיצה קטן (לא חובה, אפשר להסיר)
+  // Simple bounce animation for visual feedback
   el.animate([
     { transform: 'translateX(-50%) scale(1.2)', opacity: 1 },
     { transform: 'translateX(-50%) scale(1)', opacity: 1 }
@@ -1577,10 +1548,12 @@ function showComboMessage(comboCount) {
     easing: 'ease-out'
   });
 
+  // Fade out after a short delay
   setTimeout(() => {
     el.style.opacity = '0';
   }, 1500);
 }
+
 
 function createFirework(x, y, z) {
   const count = 80;
@@ -1589,12 +1562,13 @@ function createFirework(x, y, z) {
   const velocities = [];
   const colors = [];
 
+  // Create initial positions, velocities, and random colors for each particle
   for (let i = 0; i < count; i++) {
     positions.push(x, y, z);
 
     velocities.push(
       (Math.random() - 0.5) * 6,
-      Math.random() * 10,  // יותר גובה
+      Math.random() * 10, // More vertical boost
       (Math.random() - 0.5) * 6
     );
 
@@ -1602,13 +1576,14 @@ function createFirework(x, y, z) {
     colors.push(color.r, color.g, color.b);
   }
 
+  // Set geometry attributes for particles
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute('velocity', new THREE.Float32BufferAttribute(velocities, 3));
-  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3)); // 🎨 צבע אישי
+  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3)); // Use per-particle colors
 
   const material = new THREE.PointsMaterial({
     size: 0.1,
-    vertexColors: true, // ⚠️ חשוב! כדי לאפשר צבעים נפרדים
+    vertexColors: true, // Enables individual colors
     transparent: true,
     opacity: 1.0,
     depthWrite: false
@@ -1619,18 +1594,20 @@ function createFirework(x, y, z) {
 
   let lifetime = 1.5;
 
+  // Update function for each firework over time
   function updateFirework(delta) {
     lifetime -= delta;
-    material.opacity = Math.max(0, lifetime / 1.5); // פייד
+    material.opacity = Math.max(0, lifetime / 1.5); // Apply fading effect
 
     if (lifetime <= 0) {
-      scene.remove(points);
+      scene.remove(points); // Remove from scene after fading
       return false;
     }
 
     const pos = geometry.attributes.position;
     const vel = geometry.attributes.velocity;
 
+    // Apply gravity and update positions
     for (let i = 0; i < pos.count; i++) {
       vel.array[i * 3 + 1] += gravity * delta;
 
@@ -1647,35 +1624,45 @@ function createFirework(x, y, z) {
 }
 
 
-
-
 function createHoopFireworks() {
-  const sampled = collisionHoopSpheres.filter((_, i) => i % 0.5 === 0); // כל חמישית בערך
+  const sampled = collisionHoopSpheres.filter((_, i) => i % 0.5 === 0); // Sample approximately every second sphere
   for (const sphere of sampled) {
     const pos = sphere.position;
-    createFirework(pos.x, pos.y, pos.z);
+    createFirework(pos.x, pos.y, pos.z); // Spawn firework at sphere location
   }
 }
 
-function resetTrails() {
-  // איפוס המערכים
-  trailMain.length = 0;
-  trailLeft.length = 0;
-  trailRight.length = 0;
-  trailUpper.length = 0;
-  trailLower.length = 0;
 
-  // איפוס הגיאומטריות
-  trailGeometryMain.setFromPoints([]);
-  trailGeometryLeft.setFromPoints([]);
-  trailGeometryRight.setFromPoints([]);
-  trailGeometryUpper.setFromPoints([]);
-  trailGeometryLower.setFromPoints([]);
+/* =========================================================================
+   Scoring & Statistics
+   ========================================================================= */
+
+function updateScoreDisplay() {
+  const stats = document.getElementById("stats");
+  const power = document.getElementById("power");
+  if (!stats || !power) return;
+
+  // Calculate shooting accuracy
+  const percentage = shotsAttempted === 0
+    ? 0
+    : ((shotsScored / shotsAttempted) * 100).toFixed(1);
+
+  // Update stats panel with shot data
+  stats.innerHTML = `
+    Shots: ${shotsAttempted}<br>
+    Hits: ${shotsScored}<br>
+    Accuracy: ${percentage}%
+  `;
+
+  // Update power display with current shot strength
+  power.innerText = `Power: ${Math.round(shotPower * 100)}%`;
 }
 
-function updateScoreboardScore() {
-  if (!font) return;
 
+function updateScoreboardScore() {
+  if (!font) return; // Skip if font has not loaded
+
+  // Create new text geometry for updated score
   const newGeometry = new THREE.TextGeometry(`Score: ${score}`, {
     font: font,
     size: 0.75,
@@ -1687,14 +1674,15 @@ function updateScoreboardScore() {
     bevelSegments: 3
   });
 
+  // Calculate width for centering the text
   newGeometry.computeBoundingBox();
   const textWidth = newGeometry.boundingBox.max.x - newGeometry.boundingBox.min.x;
 
   const newMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
   const newTextMesh = new THREE.Mesh(newGeometry, newMaterial);
-  newTextMesh.position.set(-textWidth / 2, 0.5 , 0.11); // ✅ הגובה המדויק
+  newTextMesh.position.set(-textWidth / 2, 0.5 , 0.11); // Centered on scoreboard
 
-  // ✅ מוחקים את הקודם מהלוח
+  // Remove previous score text from the board
   if (scoreTextMesh && scoreTextMesh.parent) {
     scoreTextMesh.parent.remove(scoreTextMesh);
     scoreTextMesh.geometry.dispose();
@@ -1703,6 +1691,7 @@ function updateScoreboardScore() {
 
   scoreTextMesh = newTextMesh;
 
+  // Attach new score text to the scoreboard object
   const board = scene.getObjectByName('scoreboard');
   if (board) {
     board.add(scoreTextMesh);
@@ -1710,5 +1699,49 @@ function updateScoreboardScore() {
 }
 
 
+function updateHighScoreIfNeeded() {
+  const prev = parseInt(localStorage.getItem("highScore")) || 0;
+
+  // Update stored high score if current score is greater
+  if (score > prev) {
+    localStorage.setItem("highScore", score);
+  }
+
+  // Display the updated high score in the UI
+  const el = document.getElementById("highScoreBox");
+  if (el) {
+    el.innerText = `🏅 High Score: ${Math.max(score, prev)}`;
+  }
+}
+
+/* =========================================================================
+   Utility & Cleanup
+   ========================================================================= */
+function resetTrails() {
+  // Clear trail point arrays
+  trailMain.length = 0;
+  trailLeft.length = 0;
+  trailRight.length = 0;
+  trailUpper.length = 0;
+  trailLower.length = 0;
+
+  // Reset trail geometries to empty state
+  trailGeometryMain.setFromPoints([]);
+  trailGeometryLeft.setFromPoints([]);
+  trailGeometryRight.setFromPoints([]);
+  trailGeometryUpper.setFromPoints([]);
+  trailGeometryLower.setFromPoints([]);
+}
+
+function updatePowerDisplay() {
+  // Update the UI element with the current shot power as a percentage
+  const el = document.getElementById("power");
+  if (el) el.innerText = `Power: ${Math.round(shotPower * 100)}%`;
+}
+
+
+/* =========================================================================
+   Start Animation Loop
+  ========================================================================= */
 
 animate();
