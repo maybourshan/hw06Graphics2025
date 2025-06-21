@@ -109,6 +109,19 @@ You can switch between **Free Shoot** and **Timed Challenge** modes anytime usin
 
 ---
 
+## 🚀 Advanced (Bonus) Features Implemented
+
+- **Multiple Hoops** – Auto-targeting works for both left and right hoops  
+- **Swish Detection** – No-contact shots trigger a “SWISH!” message and fireworks  
+- **Combo System** – Consecutive hits give bonus points with animated messages  
+- **Time Challenge Mode** – 60-second challenge with goal, score tracking, and alerts  
+- **Sound Effects** – Impact, make, and miss sounds for all interactions  
+- **Ball Trail Effect** – 5-layer colorful trail follows ball in motion  
+- **Game Modes** – Switch between Free Shoot and Timed Challenge anytime  
+- **Leaderboard** – Local high score saved via `localStorage`
+
+--- 
+
 ## 📸 Screenshots / Video
 
 Below are visual highlights of the game:
